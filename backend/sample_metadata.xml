@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd"
+                 xmlns:gco="http://www.isotc211.org/2005/gco"
+                 xmlns:gml="http://www.opengis.net/gml/3.2"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <!-- Metadata Date Stamp -->
+  <gmd:dateStamp>
+    <gco:DateTime>2023-09-15T14:30:00Z</gco:DateTime>
+  </gmd:dateStamp>
+
+  <!-- Contact Information -->
+  <gmd:contact>
+    <gmd:CI_ResponsibleParty>
+      <gmd:organisationName>
+        <gco:CharacterString>University of Manchester - Department of Earth and Environmental Sciences</gco:CharacterString>
+      </gmd:organisationName>
+      <gmd:contactInfo>
+        <gmd:CI_Contact>
+          <gmd:address>
+            <gmd:CI_Address>
+              <gmd:electronicMailAddress>
+                <gco:CharacterString>climate-data@manchester.ac.uk</gco:CharacterString>
+              </gmd:electronicMailAddress>
+            </gmd:CI_Address>
+          </gmd:address>
+        </gmd:CI_Contact>
+      </gmd:contactInfo>
+    </gmd:CI_ResponsibleParty>
+  </gmd:contact>
+
+  <!-- Identification Information -->
+  <gmd:identificationInfo>
+    <gmd:MD_DataIdentification>
+
+      <!-- Citation -->
+      <gmd:citation>
+        <gmd:CI_Citation>
+          <gmd:title>
+            <gco:CharacterString>UK Climate Projections 2023 Dataset</gco:CharacterString>
+          </gmd:title>
+        </gmd:CI_Citation>
+      </gmd:citation>
+
+      <!-- Abstract -->
+      <gmd:abstract>
+        <gco:CharacterString>Comprehensive climate projection data for the United Kingdom covering temperature, precipitation, and extreme weather events from 2020 to 2100. This dataset provides high-resolution climate model outputs at regional scales, essential for climate adaptation planning and research.</gco:CharacterString>
+      </gmd:abstract>
+
+      <!-- Keywords -->
+      <gmd:descriptiveKeywords>
+        <gmd:MD_Keywords>
+          <gmd:keyword>
+            <gco:CharacterString>climate change</gco:CharacterString>
+          </gmd:keyword>
+          <gmd:keyword>
+            <gco:CharacterString>temperature</gco:CharacterString>
+          </gmd:keyword>
+          <gmd:keyword>
+            <gco:CharacterString>precipitation</gco:CharacterString>
+          </gmd:keyword>
+          <gmd:keyword>
+            <gco:CharacterString>United Kingdom</gco:CharacterString>
+          </gmd:keyword>
+          <gmd:keyword>
+            <gco:CharacterString>climate projections</gco:CharacterString>
+          </gmd:keyword>
+          <gmd:keyword>
+            <gco:CharacterString>UKCP23</gco:CharacterString>
+          </gmd:keyword>
+        </gmd:MD_Keywords>
+      </gmd:descriptiveKeywords>
+
+      <!-- Language -->
+      <gmd:language>
+        <gco:CharacterString>eng</gco:CharacterString>
+      </gmd:language>
+
+      <!-- Topic Category -->
+      <gmd:topicCategory>
+        <gmd:MD_TopicCategoryCode>climatologyMeteorologyAtmosphere</gmd:MD_TopicCategoryCode>
+      </gmd:topicCategory>
+
+      <!-- Geographic Extent -->
+      <gmd:extent>
+        <gmd:EX_Extent>
+          <gmd:geographicElement>
+            <gmd:EX_GeographicBoundingBox>
+              <gmd:westBoundLongitude>
+                <gco:Decimal>-10.5</gco:Decimal>
+              </gmd:westBoundLongitude>
+              <gmd:eastBoundLongitude>
+                <gco:Decimal>2.0</gco:Decimal>
+              </gmd:eastBoundLongitude>
+              <gmd:southBoundLatitude>
+                <gco:Decimal>49.5</gco:Decimal>
+              </gmd:southBoundLatitude>
+              <gmd:northBoundLatitude>
+                <gco:Decimal>61.0</gco:Decimal>
+              </gmd:northBoundLatitude>
+            </gmd:EX_GeographicBoundingBox>
+          </gmd:geographicElement>
+
+          <!-- Temporal Extent -->
+          <gmd:temporalElement>
+            <gmd:EX_TemporalExtent>
+              <gmd:extent>
+                <gml:TimePeriod gml:id="tp1">
+                  <gml:beginPosition>2020-01-01</gml:beginPosition>
+                  <gml:endPosition>2100-12-31</gml:endPosition>
+                </gml:TimePeriod>
+              </gmd:extent>
+            </gmd:EX_TemporalExtent>
+          </gmd:temporalElement>
+        </gmd:EX_Extent>
+      </gmd:extent>
+
+    </gmd:MD_DataIdentification>
+  </gmd:identificationInfo>
+
+</gmd:MD_Metadata>

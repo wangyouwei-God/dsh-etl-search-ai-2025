@@ -1,0 +1,29 @@
+{
+  "title": "UK Climate Projections 2023 Dataset",
+  "abstract": "Comprehensive climate projection data for the United Kingdom covering temperature, precipitation, and extreme weather events from 2020 to 2100. This dataset provides high-resolution climate model outputs at regional scales, essential for climate adaptation planning and research.",
+  "keywords": [
+    "climate change",
+    "temperature",
+    "precipitation",
+    "United Kingdom",
+    "climate projections",
+    "UKCP23"
+  ],
+  "bounding_box": {
+    "west": -10.5,
+    "east": 2.0,
+    "south": 49.5,
+    "north": 61.0
+  },
+  "temporal_extent": {
+    "start": "2020-01-01",
+    "end": "2100-12-31"
+  },
+  "contact": {
+    "organization": "University of Manchester - Department of Earth and Environmental Sciences",
+    "email": "climate-data@manchester.ac.uk"
+  },
+  "metadata_date": "2023-09-15T14:30:00Z",
+  "language": "eng",
+  "topic_category": "climatologyMeteorologyAtmosphere"
+}

@@ -1,0 +1,40 @@
+# Dataset Search and Discovery Solution - Backend Dependencies
+# University of Manchester - Research Software Engineering
+# Python 3.11+
+
+# Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# HTTP Client (for downloading remote metadata)
+requests==2.31.0
+httpx==0.26.0
+
+# Retry Logic (for flaky remote catalogues)
+tenacity==8.2.3
+
+# XML Parsing (for ISO 19115/19139 metadata)
+lxml==5.1.0
+
+# Database
+sqlalchemy==2.0.25
+alembic==1.13.1
+
+# Vector Database & Embeddings (for semantic search)
+sentence-transformers==2.3.1
+numpy==1.26.3
+faiss-cpu==1.7.4
+
+# Data Validation
+python-multipart==0.0.6
+
+# Environment & Configuration
+python-dotenv==1.0.0
+
+# Utilities
+python-dateutil==2.8.2
+
+# Logging
+python-json-logger==2.0.7
