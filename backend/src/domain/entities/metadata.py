@@ -207,7 +207,7 @@ class Metadata:
 
         if self.bounding_box:
             center = self.bounding_box.get_center()
-            summary_lines.append(f"Center: {center[1]:.2f}°N, {center[0]:.2f}°E")
+            summary_lines.append(f"Center: {center[1]:.2f}Â°N, {center[0]:.2f}Â°E")
 
         if self.has_temporal_extent():
             summary_lines.append(

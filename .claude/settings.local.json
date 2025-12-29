@@ -5,7 +5,15 @@
       "Bash(chmod:*)",
       "Bash(git init:*)",
       "Bash(git branch:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(pip install:*)",
+      "Bash(python src/scripts/etl_runner.py:*)",
+      "Bash(python backend/src/scripts/etl_runner.py:*)",
+      "Bash(python test_database.py:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

@@ -39,6 +39,10 @@ from infrastructure.etl.fetcher import MetadataFetcher, FetchError
 from infrastructure.etl.factory.extractor_factory import ExtractorFactory
 from application.interfaces.metadata_extractor import MetadataExtractionError
 from domain.entities.metadata import Metadata
+from domain.entities.dataset import Dataset
+from infrastructure.persistence.sqlite.connection import DatabaseConnection, get_database
+from infrastructure.persistence.sqlite.dataset_repository_impl import SQLiteDatasetRepository
+from domain.repositories.dataset_repository import RepositoryError
 
 
 # Configure logging
@@ -72,7 +76,9 @@ class ETLRunner:
         catalogue: str = 'ceh',
         strict_mode: bool = False,
         timeout: int = 60,
-        max_retries: int = 3
+        max_retries: int = 3,
+        db_path: Optional[str] = None,
+        save_to_db: bool = True
     ):
         """
         Initialize the ETL runner.
@@ -82,9 +88,12 @@ class ETLRunner:
             strict_mode: If True, enforce all required fields
             timeout: HTTP timeout in seconds
             max_retries: Maximum retry attempts
+            db_path: Path to SQLite database (default: datasets.db)
+            save_to_db: If True, save extracted data to database
         """
         self.catalogue = catalogue
         self.strict_mode = strict_mode
+        self.save_to_db = save_to_db
 
         # Create services
         self.fetcher = MetadataFetcher(
@@ -94,9 +103,17 @@ class ETLRunner:
         )
         self.factory = ExtractorFactory(strict_mode=strict_mode)
 
+        # Initialize database if persistence is enabled
+        self.db = None
+        self.repository = None
+        if save_to_db:
+            db_path = db_path or "datasets.db"
+            self.db = get_database(db_path)
+            logger.info(f"Database initialized: {db_path}")
+
         logger.info(
             f"ETL Runner initialized (catalogue={catalogue}, "
-            f"strict={strict_mode})"
+            f"strict={strict_mode}, save_to_db={save_to_db})"
         )
 
     def run(
@@ -159,7 +176,7 @@ class ETLRunner:
             logger.error(f"✗ Validation failed: {str(e)}")
             raise
 
-        # Step 4: Validate and return
+        # Step 4: Validate metadata
         logger.info("Step 4: Validating metadata...")
         if metadata.is_geospatial():
             logger.info(f"✓ Geospatial dataset detected")
@@ -168,6 +185,28 @@ class ETLRunner:
                 f"✓ Temporal extent: {metadata.temporal_extent_start.year} - "
                 f"{metadata.temporal_extent_end.year}"
             )
+
+        # Step 5: Save to database (if enabled)
+        if self.save_to_db:
+            logger.info("Step 5: Saving to database...")
+            try:
+                # Create dataset entity
+                dataset = Dataset(
+                    title=metadata.title,
+                    abstract=metadata.abstract,
+                    metadata_url=file_path
+                )
+
+                # Save to database
+                with self.db.session_scope() as session:
+                    repository = SQLiteDatasetRepository(session)
+                    dataset_id = repository.save(dataset, metadata)
+                    logger.info(f"✓ Saved to database with ID: {dataset_id}")
+
+            except RepositoryError as e:
+                logger.error(f"✗ Failed to save to database: {str(e)}")
+                # Don't fail the entire ETL process if database save fails
+                logger.warning("Continuing without database persistence...")
 
         logger.info("=" * 80)
         logger.info("ETL PROCESS COMPLETED SUCCESSFULLY")
@@ -331,6 +370,19 @@ Supported Catalogues:
         help='Suppress all output except errors'
     )
 
+    parser.add_argument(
+        '--db-path',
+        type=str,
+        default='datasets.db',
+        help='Path to SQLite database file (default: datasets.db)'
+    )
+
+    parser.add_argument(
+        '--no-db',
+        action='store_true',
+        help='Disable database persistence (extract only)'
+    )
+
     args = parser.parse_args()
 
     # Configure logging level
@@ -358,7 +410,9 @@ Supported Catalogues:
         catalogue=args.catalogue,
         strict_mode=args.strict,
         timeout=args.timeout,
-        max_retries=args.retries
+        max_retries=args.retries,
+        db_path=args.db_path,
+        save_to_db=not args.no_db
     )
 
     try:
