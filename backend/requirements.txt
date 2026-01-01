@@ -24,8 +24,8 @@ alembic==1.13.1
 
 # Vector Database & Embeddings (for semantic search)
 sentence-transformers==2.3.1
+chromadb==0.4.22
 numpy==1.26.3
-faiss-cpu==1.7.4
 
 # Data Validation
 python-multipart==0.0.6

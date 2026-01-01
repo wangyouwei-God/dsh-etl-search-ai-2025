@@ -43,6 +43,10 @@ from domain.entities.dataset import Dataset
 from infrastructure.persistence.sqlite.connection import DatabaseConnection, get_database
 from infrastructure.persistence.sqlite.dataset_repository_impl import SQLiteDatasetRepository
 from domain.repositories.dataset_repository import RepositoryError
+from infrastructure.services.embedding_service import HuggingFaceEmbeddingService
+from infrastructure.persistence.vector.chroma_repository import ChromaVectorRepository
+from application.interfaces.embedding_service import EmbeddingError
+from domain.repositories.vector_repository import VectorRepositoryError
 
 
 # Configure logging
@@ -78,7 +82,9 @@ class ETLRunner:
         timeout: int = 60,
         max_retries: int = 3,
         db_path: Optional[str] = None,
-        save_to_db: bool = True
+        save_to_db: bool = True,
+        enable_vector_search: bool = True,
+        vector_db_path: Optional[str] = None
     ):
         """
         Initialize the ETL runner.
@@ -90,10 +96,13 @@ class ETLRunner:
             max_retries: Maximum retry attempts
             db_path: Path to SQLite database (default: datasets.db)
             save_to_db: If True, save extracted data to database
+            enable_vector_search: If True, enable semantic search with embeddings
+            vector_db_path: Path to ChromaDB directory (default: chroma_db)
         """
         self.catalogue = catalogue
         self.strict_mode = strict_mode
         self.save_to_db = save_to_db
+        self.enable_vector_search = enable_vector_search
 
         # Create services
         self.fetcher = MetadataFetcher(
@@ -111,9 +120,28 @@ class ETLRunner:
             self.db = get_database(db_path)
             logger.info(f"Database initialized: {db_path}")
 
+        # Initialize vector search if enabled
+        self.embedding_service = None
+        self.vector_repository = None
+        if enable_vector_search:
+            try:
+                logger.info("Initializing semantic search components...")
+                self.embedding_service = HuggingFaceEmbeddingService()
+                vector_db_path = vector_db_path or "chroma_db"
+                self.vector_repository = ChromaVectorRepository(vector_db_path)
+                logger.info(
+                    f"Semantic search initialized: model={self.embedding_service.get_model_name()}, "
+                    f"dimension={self.embedding_service.get_dimension()}"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to initialize semantic search: {str(e)}")
+                logger.warning("Continuing without vector search...")
+                self.enable_vector_search = False
+
         logger.info(
             f"ETL Runner initialized (catalogue={catalogue}, "
-            f"strict={strict_mode}, save_to_db={save_to_db})"
+            f"strict={strict_mode}, save_to_db={save_to_db}, "
+            f"vector_search={enable_vector_search})"
         )
 
     def run(
@@ -187,6 +215,7 @@ class ETLRunner:
             )
 
         # Step 5: Save to database (if enabled)
+        dataset_id = None
         if self.save_to_db:
             logger.info("Step 5: Saving to database...")
             try:
@@ -207,6 +236,60 @@ class ETLRunner:
                 logger.error(f"✗ Failed to save to database: {str(e)}")
                 # Don't fail the entire ETL process if database save fails
                 logger.warning("Continuing without database persistence...")
+
+        # Step 6: Generate embeddings and save to vector database (if enabled)
+        if self.enable_vector_search and self.embedding_service and self.vector_repository:
+            logger.info("Step 6: Generating embeddings for semantic search...")
+            try:
+                # Combine title and abstract for embedding
+                text_to_embed = f"{metadata.title} {metadata.abstract}"
+
+                # Generate embedding
+                logger.info("Generating text embedding...")
+                embedding = self.embedding_service.generate_embedding(text_to_embed)
+                logger.info(f"✓ Generated {len(embedding)}-dimensional embedding")
+
+                # Prepare metadata for vector store
+                vector_metadata = {
+                    "title": metadata.title,
+                    "abstract": metadata.abstract[:500],  # Truncate for storage
+                    "contact_email": metadata.contact_email or "",
+                    "dataset_language": metadata.dataset_language or "eng",
+                    "keywords": str(metadata.keywords),
+                }
+
+                # Add geographic/temporal info if available
+                if metadata.bounding_box:
+                    vector_metadata["has_geo_extent"] = True
+                    vector_metadata["center_lat"] = str(metadata.bounding_box.get_center()[1])
+                    vector_metadata["center_lon"] = str(metadata.bounding_box.get_center()[0])
+                else:
+                    vector_metadata["has_geo_extent"] = False
+
+                if metadata.has_temporal_extent():
+                    vector_metadata["has_temporal_extent"] = True
+                    vector_metadata["temporal_start"] = str(metadata.temporal_extent_start)
+                    vector_metadata["temporal_end"] = str(metadata.temporal_extent_end)
+                else:
+                    vector_metadata["has_temporal_extent"] = False
+
+                # Use dataset ID or UUID as vector ID
+                vector_id = dataset_id or uuid
+
+                # Save to vector database
+                self.vector_repository.upsert_vector(
+                    id=vector_id,
+                    vector=embedding,
+                    metadata=vector_metadata
+                )
+                logger.info(f"✓ Saved embedding to vector database with ID: {vector_id}")
+
+            except EmbeddingError as e:
+                logger.error(f"✗ Failed to generate embedding: {str(e)}")
+                logger.warning("Continuing without vector search...")
+            except VectorRepositoryError as e:
+                logger.error(f"✗ Failed to save to vector database: {str(e)}")
+                logger.warning("Continuing without vector search...")
 
         logger.info("=" * 80)
         logger.info("ETL PROCESS COMPLETED SUCCESSFULLY")
@@ -383,6 +466,19 @@ Supported Catalogues:
         help='Disable database persistence (extract only)'
     )
 
+    parser.add_argument(
+        '--no-vector-search',
+        action='store_true',
+        help='Disable semantic search / vector embeddings'
+    )
+
+    parser.add_argument(
+        '--vector-db-path',
+        type=str,
+        default='chroma_db',
+        help='Path to ChromaDB directory (default: chroma_db)'
+    )
+
     args = parser.parse_args()
 
     # Configure logging level
@@ -412,7 +508,9 @@ Supported Catalogues:
         timeout=args.timeout,
         max_retries=args.retries,
         db_path=args.db_path,
-        save_to_db=not args.no_db
+        save_to_db=not args.no_db,
+        enable_vector_search=not args.no_vector_search,
+        vector_db_path=args.vector_db_path
     )
 
     try:
