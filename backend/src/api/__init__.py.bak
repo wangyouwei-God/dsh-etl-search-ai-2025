@@ -1,0 +1,5 @@
+"""
+API Layer Package
+
+This package contains the FastAPI REST API for the Dataset Search application.
+"""
