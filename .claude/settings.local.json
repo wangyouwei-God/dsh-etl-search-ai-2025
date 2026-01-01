@@ -21,7 +21,9 @@
       "Bash(cp:*)",
       "Bash(rm:*)",
       "Bash(sqlite3:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(cat:*)",
+      "Bash(npm install)"
     ],
     "deny": [],
     "ask": []
