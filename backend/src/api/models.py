@@ -80,3 +80,47 @@ class ErrorSchema(BaseModel):
     """Error response schema."""
     detail: str
     error_type: Optional[str] = None
+
+
+# ============================================================================
+# Chat/RAG Schemas
+# ============================================================================
+
+class ChatSourceSchema(BaseModel):
+    """Source citation in chat response."""
+    id: str
+    title: str
+    source_type: str = "dataset"  # 'dataset' or 'document'
+    relevance_score: float
+    content_preview: Optional[str] = None
+
+
+class ChatRequestSchema(BaseModel):
+    """Chat request schema."""
+    message: str = Field(..., description="User message", min_length=1, max_length=5000)
+    conversation_id: Optional[str] = Field(None, description="ID of existing conversation")
+    include_sources: bool = Field(True, description="Include source citations")
+
+
+class ChatResponseSchema(BaseModel):
+    """Chat response schema."""
+    answer: str
+    conversation_id: str
+    sources: List[ChatSourceSchema] = []
+    processing_time_ms: float
+
+
+class ConversationTurnSchema(BaseModel):
+    """A single turn in a conversation."""
+    role: str  # 'user' or 'assistant'
+    content: str
+    timestamp: datetime
+
+
+class ConversationSchema(BaseModel):
+    """Conversation schema for listing."""
+    id: str
+    turns_count: int
+    created_at: datetime
+    updated_at: datetime
+

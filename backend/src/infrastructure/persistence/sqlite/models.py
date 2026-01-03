@@ -49,6 +49,20 @@ class DatasetModel(Base):
         uselist=False,
         cascade="all, delete-orphan"
     )
+    
+    # Relationship to data files (one-to-many)
+    data_files = relationship(
+        "DataFileModel",
+        back_populates="dataset",
+        cascade="all, delete-orphan"
+    )
+    
+    # Relationship to supporting documents (one-to-many)
+    supporting_documents = relationship(
+        "SupportingDocumentModel",
+        back_populates="dataset",
+        cascade="all, delete-orphan"
+    )
 
     # Indexes for search performance
     __table_args__ = (
@@ -165,6 +179,89 @@ class MetadataModel(Base):
         return None
 
 
+class DataFileModel(Base):
+    """
+    SQLAlchemy model for data files within datasets.
+    
+    Maps to the DataFile domain entity.
+    Represents the one-to-many relationship between datasets and their data files.
+    """
+    
+    __tablename__ = 'data_files'
+    
+    # Primary key
+    id = Column(String(36), primary_key=True, index=True)  # UUID as string
+    
+    # Foreign key to dataset
+    dataset_id = Column(String(36), ForeignKey('datasets.id'), nullable=False, index=True)
+    
+    # File information
+    filename = Column(String(500), nullable=False)
+    file_path = Column(String(1000), nullable=True)
+    file_size = Column(Integer, nullable=True, default=0)
+    file_format = Column(String(50), nullable=True)
+    checksum = Column(String(64), nullable=True)  # MD5/SHA256
+    description = Column(Text, nullable=True)
+    
+    # Timestamps
+    downloaded_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    
+    # Relationship
+    dataset = relationship("DatasetModel", back_populates="data_files")
+    
+    __table_args__ = (
+        Index('idx_data_file_dataset_id', 'dataset_id'),
+        Index('idx_data_file_filename', 'filename'),
+    )
+    
+    def __repr__(self):
+        return f"<DataFileModel(id='{self.id}', filename='{self.filename}')>"
+
+
+class SupportingDocumentModel(Base):
+    """
+    SQLAlchemy model for supporting documents.
+    
+    Maps to the SupportingDocument domain entity.
+    Stores supplementary documentation with optional extracted text for RAG.
+    """
+    
+    __tablename__ = 'supporting_documents'
+    
+    # Primary key
+    id = Column(String(36), primary_key=True, index=True)  # UUID as string
+    
+    # Foreign key to dataset
+    dataset_id = Column(String(36), ForeignKey('datasets.id'), nullable=False, index=True)
+    
+    # Document information
+    title = Column(String(500), nullable=True)
+    document_type = Column(String(100), nullable=True)  # methodology, technical_report, etc.
+    filename = Column(String(500), nullable=False)
+    file_path = Column(String(1000), nullable=True)
+    file_size = Column(Integer, nullable=True, default=0)
+    
+    # RAG support
+    content_text = Column(Text, nullable=True)  # Extracted text content
+    is_processed = Column(Integer, nullable=False, default=0)  # Boolean as int
+    
+    # Timestamps
+    downloaded_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    
+    # Relationship
+    dataset = relationship("DatasetModel", back_populates="supporting_documents")
+    
+    __table_args__ = (
+        Index('idx_supporting_doc_dataset_id', 'dataset_id'),
+        Index('idx_supporting_doc_type', 'document_type'),
+    )
+    
+    def __repr__(self):
+        return f"<SupportingDocumentModel(id='{self.id}', title='{self.title or self.filename}')>"
+
+
 # Database initialization helper
 def create_tables(engine):
     """
@@ -197,3 +294,4 @@ def drop_tables(engine):
         >>> drop_tables(engine)
     """
     Base.metadata.drop_all(engine)
+

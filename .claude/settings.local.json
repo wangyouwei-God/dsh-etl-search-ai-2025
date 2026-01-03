@@ -23,7 +23,12 @@
       "Bash(sqlite3:*)",
       "Bash(pkill:*)",
       "Bash(cat:*)",
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "Bash(npm run build:*)",
+      "Bash(docker compose:*)",
+      "Bash(gh repo view:*)",
+      "Bash(tree:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

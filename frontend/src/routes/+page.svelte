@@ -3,7 +3,7 @@
 	import DatasetCard from '$lib/components/DatasetCard.svelte';
 	import { searchDatasets, APIError } from '$lib/api';
 	import type { SearchResponse } from '$lib/types';
-	import { AlertCircle, Sparkles } from 'lucide-svelte';
+	import { AlertCircle, Sparkles, MessageCircle } from 'lucide-svelte';
 
 	let query = '';
 	let results: SearchResponse | null = null;
@@ -45,6 +45,13 @@
 		<p class="text-lg text-muted-foreground max-w-2xl mx-auto">
 			Search through curated datasets using advanced semantic search powered by AI
 		</p>
+		<a 
+			href="/chat" 
+			class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors mt-4"
+		>
+			<MessageCircle class="w-5 h-5" />
+			Chat with Dataset Assistant
+		</a>
 	</div>
 
 	<!-- Search Bar -->

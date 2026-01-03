@@ -35,8 +35,13 @@ from infrastructure.persistence.sqlite.connection import get_database
 from infrastructure.persistence.sqlite.dataset_repository_impl import SQLiteDatasetRepository
 from infrastructure.persistence.vector.chroma_repository import ChromaVectorRepository
 from infrastructure.services.embedding_service import HuggingFaceEmbeddingService
+from infrastructure.services.gemini_service import GeminiService, GeminiError
+from application.services.rag_service import RAGService
 from domain.repositories.dataset_repository import DatasetNotFoundError
 from domain.repositories.vector_repository import VectorRepositoryError
+
+# Import routers
+from api.routers import chat as chat_router
 
 # Configure logging
 logging.basicConfig(
@@ -50,6 +55,7 @@ logger = logging.getLogger(__name__)
 db = None
 embedding_service = None
 vector_repository = None
+rag_service = None
 
 
 @asynccontextmanager
@@ -59,7 +65,7 @@ async def lifespan(app: FastAPI):
     
     Initializes services on startup and cleans up on shutdown.
     """
-    global db, embedding_service, vector_repository
+    global db, embedding_service, vector_repository, rag_service
     
     logger.info("Initializing API services...")
     
@@ -78,6 +84,30 @@ async def lifespan(app: FastAPI):
         chroma_path = str(backend_dir / "chroma_db")
         vector_repository = ChromaVectorRepository(chroma_path)
         logger.info(f"✓ Vector repository initialized: {chroma_path}, {vector_repository.count()} vectors")
+        
+        # Initialize Gemini and RAG service
+        try:
+            gemini_api_key = os.environ.get("GEMINI_API_KEY")
+            gemini_model = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
+            
+            if gemini_api_key:
+                gemini_service = GeminiService(
+                    api_key=gemini_api_key,
+                    model=gemini_model
+                )
+                rag_service = RAGService(
+                    embedding_service=embedding_service,
+                    vector_repository=vector_repository,
+                    gemini_service=gemini_service
+                )
+                # Set RAG service in chat router
+                chat_router.rag_service = rag_service
+                logger.info(f"✓ RAG service initialized with Gemini model: {gemini_model}")
+            else:
+                logger.warning("⚠ GEMINI_API_KEY not set - Chat/RAG features disabled")
+                
+        except GeminiError as e:
+            logger.warning(f"⚠ Failed to initialize Gemini: {e} - Chat/RAG features disabled")
         
         logger.info("API services ready!")
         
@@ -124,9 +154,14 @@ async def root():
             "health": "/health",
             "search": "/api/search?q={query}",
             "dataset": "/api/datasets/{id}",
-            "all_datasets": "/api/datasets"
+            "all_datasets": "/api/datasets",
+            "chat": "/api/chat"
         }
     }
+
+
+# Register routers
+app.include_router(chat_router.router)
 
 
 @app.get("/health", response_model=HealthCheckSchema, tags=["Health"])

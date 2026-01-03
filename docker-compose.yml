@@ -13,6 +13,8 @@ services:
       - ./backend/chroma_db:/app/chroma_db
     environment:
       - PYTHONUNBUFFERED=1
+      - GEMINI_API_KEY=AIzaSyCSwR6r7JbOE_xTuA98oJu28GEpuKVXxrQ
+      - GEMINI_MODEL=gemini-flash-latest
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

@@ -57,3 +57,34 @@ export interface HealthCheck {
 	embedding_model: string;
 	embedding_dimension: number;
 }
+
+// Chat/RAG types
+export interface ChatSource {
+	id: string;
+	title: string;
+	source_type: string;
+	relevance_score: number;
+	content_preview?: string;
+}
+
+export interface ChatRequest {
+	message: string;
+	conversation_id?: string;
+	include_sources?: boolean;
+}
+
+export interface ChatResponse {
+	answer: string;
+	conversation_id: string;
+	sources: ChatSource[];
+	processing_time_ms: number;
+}
+
+export interface ChatMessage {
+	id: string;
+	role: 'user' | 'assistant';
+	content: string;
+	timestamp: Date;
+	sources?: ChatSource[];
+}
+
