@@ -3,7 +3,7 @@
 	import DatasetCard from '$lib/components/DatasetCard.svelte';
 	import { searchDatasets, APIError } from '$lib/api';
 	import type { SearchResponse } from '$lib/types';
-	import { AlertCircle, Sparkles, MessageCircle } from 'lucide-svelte';
+	import { AlertCircle, Database, Search } from 'lucide-svelte';
 
 	let query = '';
 	let results: SearchResponse | null = null;
@@ -31,26 +31,26 @@
 </script>
 
 <svelte:head>
-	<title>Dataset Search & Discovery | University of Manchester</title>
-	<meta name="description" content="Semantic search for environmental datasets" />
+	<title>Dataset Search | UK Centre for Ecology and Hydrology</title>
+	<meta name="description" content="Search and discover environmental research datasets" />
 </svelte:head>
 
 <div class="space-y-8">
 	<!-- Hero Section -->
 	<div class="text-center space-y-4 py-8">
-		<div class="flex items-center justify-center gap-2">
-			<Sparkles class="w-8 h-8 text-primary" />
-			<h2 class="text-4xl font-bold text-foreground">Discover Environmental Datasets</h2>
+		<div class="flex items-center justify-center gap-3">
+			<Database class="w-7 h-7 text-foreground opacity-80" />
+			<h2 class="text-3xl font-semibold text-foreground tracking-tight">Environmental Dataset Discovery</h2>
 		</div>
-		<p class="text-lg text-muted-foreground max-w-2xl mx-auto">
-			Search through curated datasets using advanced semantic search powered by AI
+		<p class="text-base text-muted-foreground max-w-xl mx-auto">
+			Search across curated research datasets from the UK Centre for Ecology and Hydrology
 		</p>
 		<a 
 			href="/chat" 
-			class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors mt-4"
+			class="inline-flex items-center gap-2 px-5 py-2.5 bg-foreground text-background rounded-md hover:opacity-90 transition-opacity mt-4 text-sm font-medium"
 		>
-			<MessageCircle class="w-5 h-5" />
-			Chat with Dataset Assistant
+			<Search class="w-4 h-4" />
+			Advanced Query Interface
 		</a>
 	</div>
 

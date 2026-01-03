@@ -3,43 +3,51 @@
 </script>
 
 <svelte:head>
-	<title>Dataset Chat | Dataset Search</title>
+	<title>Dataset Query | UK Centre for Ecology and Hydrology</title>
 </svelte:head>
 
-<div class="chat-page">
-	<div class="chat-wrapper">
+<div class="query-page">
+	<div class="query-wrapper">
 		<ChatInterface />
 	</div>
 	
-	<div class="back-link">
-		<a href="/">← Back to Search</a>
-	</div>
+	<nav class="back-navigation">
+		<a href="/">Return to Search</a>
+	</nav>
 </div>
 
 <style>
-	.chat-page {
+	.query-page {
 		min-height: 100vh;
-		background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-		padding: 40px 20px;
+		background: #f8f9fa;
+		padding: 48px 24px;
 	}
 	
-	.chat-wrapper {
-		max-width: 800px;
+	.query-wrapper {
+		max-width: 720px;
 		margin: 0 auto;
 	}
 	
-	.back-link {
-		max-width: 800px;
-		margin: 16px auto 0;
+	.back-navigation {
+		max-width: 720px;
+		margin: 20px auto 0;
 	}
 	
-	.back-link a {
-		color: #2563eb;
+	.back-navigation a {
+		color: #6b7280;
 		text-decoration: none;
 		font-size: 0.875rem;
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		transition: color 0.15s ease;
 	}
 	
-	.back-link a:hover {
-		text-decoration: underline;
+	.back-navigation a::before {
+		content: '←';
+	}
+	
+	.back-navigation a:hover {
+		color: #1a1a2e;
 	}
 </style>

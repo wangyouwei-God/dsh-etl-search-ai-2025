@@ -78,96 +78,143 @@
 </script>
 
 <div class="chat-container">
-	<div class="chat-header">
-		<h2>Dataset Assistant</h2>
-		<p>Ask questions about environmental datasets</p>
+	<header class="chat-header">
+		<div class="header-content">
+			<div class="header-icon">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+					<path d="M20 6L9 17l-5-5" />
+				</svg>
+			</div>
+			<div class="header-text">
+				<h1>Dataset Discovery</h1>
+				<p>Environmental research data query interface</p>
+			</div>
+		</div>
 		{#if messages.length > 0}
-			<button class="clear-btn" on:click={clearConversation}>Clear Chat</button>
+			<button class="btn-clear" on:click={clearConversation}>
+				New Session
+			</button>
 		{/if}
-	</div>
+	</header>
 
-	<div class="messages-container">
+	<main class="messages-area">
 		{#if messages.length === 0}
-			<div class="welcome-message">
-				<div class="welcome-icon">💬</div>
-				<h3>Welcome to the Dataset Assistant</h3>
-				<p>I can help you find and understand environmental datasets. Try asking:</p>
-				<ul class="suggestions">
-					<li>
-						<button on:click={() => (inputMessage = 'What datasets do you have about land cover?')}
-							>What datasets do you have about land cover?</button
-						>
-					</li>
-					<li>
-						<button
-							on:click={() => (inputMessage = 'Tell me about climate change research data')}
-							>Tell me about climate change research data</button
-						>
-					</li>
-					<li>
-						<button on:click={() => (inputMessage = 'What biodiversity datasets are available?')}
-							>What biodiversity datasets are available?</button
-						>
-					</li>
-				</ul>
+			<div class="empty-state">
+				<div class="empty-icon">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+						<circle cx="11" cy="11" r="8" />
+						<path d="m21 21-4.35-4.35" />
+					</svg>
+				</div>
+				<h2>Query Environmental Datasets</h2>
+				<p>
+					Search across curated research datasets from the UK Centre for Ecology and Hydrology.
+					Enter your query below or select a suggested topic.
+				</p>
+				<div class="suggested-queries">
+					<button
+						class="query-chip"
+						on:click={() => (inputMessage = 'What datasets are available for land cover analysis?')}
+					>
+						Land cover analysis
+					</button>
+					<button
+						class="query-chip"
+						on:click={() => (inputMessage = 'Show me climate and weather datasets')}
+					>
+						Climate data
+					</button>
+					<button
+						class="query-chip"
+						on:click={() => (inputMessage = 'What biodiversity monitoring data exists?')}
+					>
+						Biodiversity monitoring
+					</button>
+				</div>
 			</div>
 		{:else}
-			{#each messages as message}
-				<div class="message {message.role}">
-					<div class="message-avatar">
-						{message.role === 'user' ? '👤' : '🤖'}
-					</div>
-					<div class="message-content">
-						<div class="message-text">{@html message.content.replace(/\n/g, '<br>')}</div>
-
-						{#if message.sources && message.sources.length > 0}
-							<div class="sources">
-								<strong>Sources:</strong>
-								<ul>
-									{#each message.sources as source}
-										<li>
-											<a href="/datasets/{source.id}">{source.title}</a>
-											<span class="relevance">({formatScore(source.relevance_score)})</span>
-										</li>
-									{/each}
-								</ul>
-							</div>
-						{/if}
-					</div>
-				</div>
-			{/each}
-
-			{#if isLoading}
-				<div class="message assistant">
-					<div class="message-avatar">🤖</div>
-					<div class="message-content">
-						<div class="typing-indicator">
-							<span></span>
-							<span></span>
-							<span></span>
+			<div class="message-list">
+				{#each messages as message}
+					<article class="message {message.role}">
+						<div class="message-indicator">
+							{#if message.role === 'user'}
+								<span class="indicator-user">Q</span>
+							{:else}
+								<span class="indicator-system">A</span>
+							{/if}
 						</div>
-					</div>
-				</div>
-			{/if}
+						<div class="message-body">
+							<div class="message-text">{@html message.content.replace(/\n/g, '<br>')}</div>
+
+							{#if message.sources && message.sources.length > 0}
+								<div class="sources-panel">
+									<h4>Related Datasets</h4>
+									<ul class="sources-list">
+										{#each message.sources as source}
+											<li>
+												<a href="/datasets/{source.id}" class="source-link">
+													<span class="source-title">{source.title}</span>
+													<span class="source-score">{formatScore(source.relevance_score)} match</span>
+												</a>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+						</div>
+					</article>
+				{/each}
+
+				{#if isLoading}
+					<article class="message assistant">
+						<div class="message-indicator">
+							<span class="indicator-system">A</span>
+						</div>
+						<div class="message-body">
+							<div class="loading-indicator">
+								<span></span>
+								<span></span>
+								<span></span>
+							</div>
+						</div>
+					</article>
+				{/if}
+			</div>
 		{/if}
-	</div>
+	</main>
 
 	{#if error}
-		<div class="error-message">{error}</div>
+		<div class="error-banner">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="error-icon">
+				<circle cx="12" cy="12" r="10" />
+				<line x1="12" y1="8" x2="12" y2="12" />
+				<line x1="12" y1="16" x2="12.01" y2="16" />
+			</svg>
+			<span>{error}</span>
+		</div>
 	{/if}
 
-	<div class="input-container">
-		<textarea
-			bind:value={inputMessage}
-			on:keydown={handleKeydown}
-			placeholder="Ask about datasets..."
-			disabled={isLoading}
-			rows="1"
-		></textarea>
-		<button class="send-btn" on:click={handleSend} disabled={isLoading || !inputMessage.trim()}>
-			{isLoading ? '...' : '➤'}
-		</button>
-	</div>
+	<footer class="input-area">
+		<div class="input-wrapper">
+			<textarea
+				bind:value={inputMessage}
+				on:keydown={handleKeydown}
+				placeholder="Enter your query..."
+				disabled={isLoading}
+				rows="1"
+			></textarea>
+			<button 
+				class="btn-submit" 
+				on:click={handleSend} 
+				disabled={isLoading || !inputMessage.trim()}
+				aria-label="Submit query"
+			>
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M5 12h14M12 5l7 7-7 7" />
+				</svg>
+			</button>
+		</div>
+	</footer>
 </div>
 
 <style>
@@ -177,252 +224,364 @@
 		height: 600px;
 		max-height: 80vh;
 		background: #ffffff;
-		border-radius: 12px;
-		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+		border: 1px solid #e5e7eb;
+		border-radius: 8px;
 		overflow: hidden;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 	}
 
+	/* Header */
 	.chat-header {
-		padding: 16px 20px;
-		background: linear-gradient(135deg, #2563eb, #1d4ed8);
-		color: white;
-		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 16px 24px;
+		background: #fafafa;
+		border-bottom: 1px solid #e5e7eb;
 	}
 
-	.chat-header h2 {
-		margin: 0 0 4px 0;
-		font-size: 1.25rem;
+	.header-content {
+		display: flex;
+		align-items: center;
+		gap: 12px;
 	}
 
-	.chat-header p {
-		margin: 0;
-		opacity: 0.9;
-		font-size: 0.875rem;
-	}
-
-	.clear-btn {
-		position: absolute;
-		top: 16px;
-		right: 16px;
-		background: rgba(255, 255, 255, 0.2);
-		border: none;
-		color: white;
-		padding: 6px 12px;
+	.header-icon {
+		width: 32px;
+		height: 32px;
+		background: #1a1a2e;
 		border-radius: 6px;
-		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.header-icon svg {
+		width: 18px;
+		height: 18px;
+		color: #ffffff;
+	}
+
+	.header-text h1 {
+		margin: 0;
+		font-size: 1rem;
+		font-weight: 600;
+		color: #1a1a2e;
+		letter-spacing: -0.01em;
+	}
+
+	.header-text p {
+		margin: 2px 0 0 0;
 		font-size: 0.75rem;
+		color: #6b7280;
+		letter-spacing: 0.01em;
 	}
 
-	.clear-btn:hover {
-		background: rgba(255, 255, 255, 0.3);
+	.btn-clear {
+		padding: 8px 14px;
+		background: transparent;
+		border: 1px solid #d1d5db;
+		border-radius: 6px;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		color: #4b5563;
+		cursor: pointer;
+		transition: all 0.15s ease;
 	}
 
-	.messages-container {
+	.btn-clear:hover {
+		background: #f3f4f6;
+		border-color: #9ca3af;
+	}
+
+	/* Messages Area */
+	.messages-area {
 		flex: 1;
 		overflow-y: auto;
-		padding: 20px;
-		background: #f8fafc;
+		padding: 24px;
+		background: #ffffff;
 	}
 
-	.welcome-message {
+	/* Empty State */
+	.empty-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		height: 100%;
 		text-align: center;
 		padding: 40px 20px;
 	}
 
-	.welcome-icon {
-		font-size: 3rem;
-		margin-bottom: 16px;
-	}
-
-	.welcome-message h3 {
-		margin: 0 0 8px 0;
-		color: #1e293b;
-	}
-
-	.welcome-message p {
-		color: #64748b;
+	.empty-icon {
+		width: 48px;
+		height: 48px;
 		margin-bottom: 20px;
+		color: #9ca3af;
 	}
 
-	.suggestions {
-		list-style: none;
-		padding: 0;
-		margin: 0;
-	}
-
-	.suggestions li {
-		margin-bottom: 8px;
-	}
-
-	.suggestions button {
-		background: white;
-		border: 1px solid #e2e8f0;
-		padding: 10px 16px;
-		border-radius: 8px;
-		cursor: pointer;
-		color: #2563eb;
-		transition: all 0.2s;
+	.empty-icon svg {
 		width: 100%;
-		max-width: 350px;
+		height: 100%;
 	}
 
-	.suggestions button:hover {
-		background: #eff6ff;
-		border-color: #2563eb;
+	.empty-state h2 {
+		margin: 0 0 8px 0;
+		font-size: 1.25rem;
+		font-weight: 600;
+		color: #1a1a2e;
+	}
+
+	.empty-state p {
+		margin: 0 0 24px 0;
+		max-width: 400px;
+		font-size: 0.875rem;
+		line-height: 1.6;
+		color: #6b7280;
+	}
+
+	.suggested-queries {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		justify-content: center;
+	}
+
+	.query-chip {
+		padding: 8px 16px;
+		background: #f9fafb;
+		border: 1px solid #e5e7eb;
+		border-radius: 20px;
+		font-size: 0.8125rem;
+		color: #374151;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.query-chip:hover {
+		background: #f3f4f6;
+		border-color: #1a1a2e;
+		color: #1a1a2e;
+	}
+
+	/* Message List */
+	.message-list {
+		display: flex;
+		flex-direction: column;
+		gap: 20px;
 	}
 
 	.message {
 		display: flex;
 		gap: 12px;
-		margin-bottom: 16px;
 	}
 
-	.message-avatar {
-		width: 36px;
-		height: 36px;
-		border-radius: 50%;
-		background: #e2e8f0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 1.25rem;
+	.message-indicator {
 		flex-shrink: 0;
 	}
 
-	.message.assistant .message-avatar {
-		background: #dbeafe;
+	.message-indicator span {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		border-radius: 4px;
+		font-size: 0.75rem;
+		font-weight: 600;
 	}
 
-	.message-content {
+	.indicator-user {
+		background: #1a1a2e;
+		color: #ffffff;
+	}
+
+	.indicator-system {
+		background: #e5e7eb;
+		color: #374151;
+	}
+
+	.message-body {
 		flex: 1;
-		background: white;
-		padding: 12px 16px;
-		border-radius: 12px;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-		max-width: 85%;
-	}
-
-	.message.user .message-content {
-		background: #2563eb;
-		color: white;
-		margin-left: auto;
+		min-width: 0;
 	}
 
 	.message-text {
-		line-height: 1.5;
+		font-size: 0.9375rem;
+		line-height: 1.65;
+		color: #1f2937;
 	}
 
-	.sources {
-		margin-top: 12px;
-		padding-top: 12px;
-		border-top: 1px solid #e2e8f0;
-		font-size: 0.875rem;
+	.message.user .message-text {
+		color: #1a1a2e;
+		font-weight: 500;
 	}
 
-	.sources ul {
-		margin: 8px 0 0 0;
-		padding-left: 20px;
+	/* Sources Panel */
+	.sources-panel {
+		margin-top: 16px;
+		padding: 14px 16px;
+		background: #f9fafb;
+		border: 1px solid #e5e7eb;
+		border-radius: 6px;
 	}
 
-	.sources li {
-		margin-bottom: 4px;
-	}
-
-	.sources a {
-		color: #2563eb;
-		text-decoration: none;
-	}
-
-	.sources a:hover {
-		text-decoration: underline;
-	}
-
-	.relevance {
-		color: #64748b;
+	.sources-panel h4 {
+		margin: 0 0 10px 0;
 		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #6b7280;
 	}
 
-	.typing-indicator {
+	.sources-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.sources-list li {
+		margin-bottom: 6px;
+	}
+
+	.sources-list li:last-child {
+		margin-bottom: 0;
+	}
+
+	.source-link {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 8px 10px;
+		background: #ffffff;
+		border: 1px solid #e5e7eb;
+		border-radius: 4px;
+		text-decoration: none;
+		transition: all 0.15s ease;
+	}
+
+	.source-link:hover {
+		border-color: #1a1a2e;
+	}
+
+	.source-title {
+		font-size: 0.8125rem;
+		color: #1a1a2e;
+		font-weight: 500;
+	}
+
+	.source-score {
+		font-size: 0.75rem;
+		color: #6b7280;
+	}
+
+	/* Loading Indicator */
+	.loading-indicator {
 		display: flex;
 		gap: 4px;
-		padding: 8px 0;
+		padding: 4px 0;
 	}
 
-	.typing-indicator span {
-		width: 8px;
-		height: 8px;
-		background: #94a3b8;
+	.loading-indicator span {
+		width: 6px;
+		height: 6px;
 		border-radius: 50%;
-		animation: typing 1.4s infinite;
+		background: #9ca3af;
+		animation: pulse 1.2s infinite;
 	}
 
-	.typing-indicator span:nth-child(2) {
-		animation-delay: 0.2s;
+	.loading-indicator span:nth-child(2) {
+		animation-delay: 0.15s;
 	}
 
-	.typing-indicator span:nth-child(3) {
-		animation-delay: 0.4s;
+	.loading-indicator span:nth-child(3) {
+		animation-delay: 0.3s;
 	}
 
-	@keyframes typing {
-		0%,
-		100% {
-			opacity: 0.3;
-		}
-		50% {
-			opacity: 1;
-		}
+	@keyframes pulse {
+		0%, 100% { opacity: 0.3; }
+		50% { opacity: 1; }
 	}
 
-	.error-message {
-		padding: 12px 20px;
-		background: #fef2f2;
-		color: #dc2626;
-		font-size: 0.875rem;
-	}
-
-	.input-container {
+	/* Error Banner */
+	.error-banner {
 		display: flex;
-		gap: 12px;
-		padding: 16px 20px;
-		background: white;
-		border-top: 1px solid #e2e8f0;
+		align-items: center;
+		gap: 8px;
+		padding: 12px 24px;
+		background: #fef2f2;
+		border-top: 1px solid #fecaca;
+		font-size: 0.8125rem;
+		color: #991b1b;
 	}
 
-	.input-container textarea {
+	.error-icon {
+		width: 16px;
+		height: 16px;
+		flex-shrink: 0;
+	}
+
+	/* Input Area */
+	.input-area {
+		padding: 16px 24px;
+		background: #fafafa;
+		border-top: 1px solid #e5e7eb;
+	}
+
+	.input-wrapper {
+		display: flex;
+		gap: 10px;
+		align-items: flex-end;
+	}
+
+	.input-wrapper textarea {
 		flex: 1;
-		padding: 12px 16px;
-		border: 1px solid #e2e8f0;
-		border-radius: 8px;
-		resize: none;
+		padding: 12px 14px;
+		background: #ffffff;
+		border: 1px solid #d1d5db;
+		border-radius: 6px;
 		font-family: inherit;
-		font-size: 0.95rem;
+		font-size: 0.9375rem;
 		line-height: 1.4;
+		resize: none;
+		transition: border-color 0.15s ease;
 	}
 
-	.input-container textarea:focus {
+	.input-wrapper textarea:focus {
 		outline: none;
-		border-color: #2563eb;
-		box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+		border-color: #1a1a2e;
 	}
 
-	.send-btn {
-		padding: 12px 20px;
-		background: #2563eb;
-		color: white;
+	.input-wrapper textarea::placeholder {
+		color: #9ca3af;
+	}
+
+	.btn-submit {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 42px;
+		height: 42px;
+		background: #1a1a2e;
 		border: none;
-		border-radius: 8px;
-		font-size: 1.25rem;
+		border-radius: 6px;
 		cursor: pointer;
-		transition: background 0.2s;
+		transition: background 0.15s ease;
 	}
 
-	.send-btn:hover:not(:disabled) {
-		background: #1d4ed8;
+	.btn-submit svg {
+		width: 18px;
+		height: 18px;
+		color: #ffffff;
 	}
 
-	.send-btn:disabled {
-		background: #94a3b8;
+	.btn-submit:hover:not(:disabled) {
+		background: #2d2d44;
+	}
+
+	.btn-submit:disabled {
+		background: #d1d5db;
 		cursor: not-allowed;
 	}
 </style>
