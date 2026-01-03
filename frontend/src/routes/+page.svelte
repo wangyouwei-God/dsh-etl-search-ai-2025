@@ -31,170 +31,128 @@
 
 <svelte:head>
 	<title>Dataset Search | UK Centre for Ecology and Hydrology</title>
-	<meta name="description" content="Search and discover environmental research datasets" />
+	<meta name="description" content="Search environmental research datasets" />
 </svelte:head>
 
-<div class="page-wrapper">
-	<!-- Hero -->
-	<header class="hero-section">
-		<div class="hero-icon">
-			<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-				<ellipse cx="12" cy="5" rx="9" ry="3"/>
-				<path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-				<path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-			</svg>
-		</div>
-		<h1>Environmental Dataset Discovery</h1>
-		<p>Search across curated research datasets from the UK Centre for Ecology and Hydrology</p>
-		<a href="/chat" class="btn-query">
-			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-				<circle cx="11" cy="11" r="8"/>
-				<path d="m21 21-4.35-4.35"/>
-			</svg>
-			Advanced Query
-		</a>
+<div class="page-content">
+	<!-- Header -->
+	<header class="page-header">
+		<h1>Environmental Dataset Search</h1>
+		<p>UK Centre for Ecology and Hydrology Data Catalogue</p>
 	</header>
 
 	<!-- Search -->
 	<SearchBar {isLoading} on:search={handleSearch} />
 
+	<!-- Navigation -->
+	<nav class="secondary-nav">
+		<a href="/chat">Advanced Query Interface</a>
+	</nav>
+
 	<!-- Error -->
 	{#if error}
-		<div class="error-card">
-			<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-				<circle cx="12" cy="12" r="10"/>
-				<line x1="12" y1="8" x2="12" y2="12"/>
-				<line x1="12" y1="16" x2="12.01" y2="16"/>
-			</svg>
-			<div>
-				<strong>Search Error</strong>
-				<span>{error}</span>
-			</div>
+		<div class="error-message">
+			<strong>Error:</strong> {error}
 		</div>
 	{/if}
 
 	<!-- Results -->
 	{#if results}
-		<div class="results-section">
-			<div class="results-header">
-				<h2>{results.total_results} result{results.total_results !== 1 ? 's' : ''}</h2>
+		<section class="results-section">
+			<div class="results-meta">
+				<span class="results-count">{results.total_results} result{results.total_results !== 1 ? 's' : ''}</span>
 				<span class="results-time">{results.processing_time_ms.toFixed(0)}ms</span>
 			</div>
 
 			{#if results.total_results === 0}
-				<div class="empty-results">
-					<p>No datasets found for "{query}"</p>
-					<span>Try different keywords or check spelling</span>
-				</div>
+				<p class="no-results">No datasets found for "{query}". Please try different search terms.</p>
 			{:else}
-				<div class="results-grid">
+				<div class="results-list">
 					{#each results.results as dataset (dataset.id)}
 						<DatasetCard {dataset} />
 					{/each}
 				</div>
 			{/if}
-		</div>
+		</section>
 	{:else if !isLoading}
 		<!-- Welcome -->
-		<div class="welcome-section">
-			<h2>Ready to explore?</h2>
-			<p>Search for topics like land cover, climate data, or biodiversity</p>
-			<div class="topic-pills">
-				{#each ['land cover mapping', 'climate monitoring', 'biodiversity survey'] as topic}
-					<button class="topic-pill" on:click={() => handleSearch(new CustomEvent('search', { detail: topic }))}>
-						{topic}
-					</button>
+		<section class="welcome-section">
+			<h2>Search the Catalogue</h2>
+			<p>Enter keywords to search across environmental research datasets. Example topics:</p>
+			<ul class="topic-list">
+				{#each ['Land cover mapping', 'Climate and weather data', 'Biodiversity monitoring'] as topic}
+					<li>
+						<button on:click={() => handleSearch(new CustomEvent('search', { detail: topic }))}>
+							{topic}
+						</button>
+					</li>
 				{/each}
-			</div>
-		</div>
+			</ul>
+		</section>
 	{/if}
 </div>
 
 <style>
-	.page-wrapper {
-		max-width: 960px;
+	.page-content {
+		max-width: 800px;
 		margin: 0 auto;
 		padding: 40px 24px 80px;
-		font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+		font-family: 'Georgia', 'Times New Roman', serif;
 	}
 
-	/* Hero */
-	.hero-section {
+	/* Header */
+	.page-header {
 		text-align: center;
-		padding: 48px 0 40px;
+		margin-bottom: 32px;
 	}
 
-	.hero-icon {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 56px;
-		height: 56px;
-		background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
-		border-radius: 16px;
-		color: white;
-		margin-bottom: 20px;
-	}
-
-	.hero-section h1 {
-		margin: 0 0 10px 0;
-		font-size: 32px;
+	.page-header h1 {
+		margin: 0 0 8px 0;
+		font-size: 26px;
 		font-weight: 600;
-		color: #1d1d1f;
-		letter-spacing: -0.02em;
+		color: #000;
+		letter-spacing: -0.01em;
 	}
 
-	.hero-section p {
-		margin: 0 0 24px 0;
-		font-size: 16px;
-		color: #86868b;
-		max-width: 400px;
-		margin-left: auto;
-		margin-right: auto;
+	.page-header p {
+		margin: 0;
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		font-size: 13px;
+		color: #666;
+		letter-spacing: 0.02em;
 	}
 
-	.btn-query {
-		display: inline-flex;
-		align-items: center;
-		gap: 8px;
-		padding: 12px 24px;
-		background: #1d1d1f;
-		color: white;
-		border-radius: 24px;
-		font-size: 14px;
-		font-weight: 500;
+	/* Nav */
+	.secondary-nav {
+		text-align: center;
+		margin-top: 16px;
+	}
+
+	.secondary-nav a {
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		font-size: 13px;
+		color: #666;
 		text-decoration: none;
-		transition: all 0.2s ease;
 	}
 
-	.btn-query:hover {
-		background: #000;
-		transform: scale(1.02);
+	.secondary-nav a:hover {
+		color: #000;
+		text-decoration: underline;
 	}
 
 	/* Error */
-	.error-card {
-		display: flex;
-		align-items: flex-start;
-		gap: 12px;
-		max-width: 600px;
-		margin: 24px auto;
-		padding: 16px 20px;
-		background: #FFF2F2;
-		border: 1px solid #FFE5E5;
-		border-radius: 12px;
-		color: #FF3B30;
-	}
-
-	.error-card strong {
-		display: block;
+	.error-message {
+		margin-top: 24px;
+		padding: 14px 18px;
+		background: #fff8f8;
+		border: 1px solid #f0cccc;
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 		font-size: 14px;
-		margin-bottom: 2px;
+		color: #900;
 	}
 
-	.error-card span {
-		font-size: 13px;
-		opacity: 0.9;
+	.error-message strong {
+		font-weight: 600;
 	}
 
 	/* Results */
@@ -202,90 +160,82 @@
 		margin-top: 32px;
 	}
 
-	.results-header {
+	.results-meta {
 		display: flex;
-		align-items: baseline;
 		justify-content: space-between;
+		padding-bottom: 12px;
 		margin-bottom: 20px;
-		padding-bottom: 16px;
-		border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+		border-bottom: 1px solid #ddd;
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 	}
 
-	.results-header h2 {
-		margin: 0;
-		font-size: 22px;
+	.results-count {
+		font-size: 14px;
 		font-weight: 600;
-		color: #1d1d1f;
+		color: #000;
 	}
 
 	.results-time {
-		font-size: 13px;
-		color: #86868b;
+		font-size: 12px;
+		color: #888;
 	}
 
-	.results-grid {
+	.results-list {
 		display: flex;
 		flex-direction: column;
 		gap: 16px;
 	}
 
-	.empty-results {
+	.no-results {
+		padding: 40px 0;
 		text-align: center;
-		padding: 60px 20px;
-	}
-
-	.empty-results p {
-		margin: 0 0 8px 0;
-		font-size: 17px;
-		color: #1d1d1f;
-	}
-
-	.empty-results span {
-		font-size: 14px;
-		color: #86868b;
+		font-size: 15px;
+		color: #666;
 	}
 
 	/* Welcome */
 	.welcome-section {
-		text-align: center;
-		padding: 60px 20px;
+		margin-top: 48px;
+		padding: 32px;
+		background: #fafafa;
+		border: 1px solid #e0e0e0;
 	}
 
 	.welcome-section h2 {
-		margin: 0 0 8px 0;
-		font-size: 22px;
+		margin: 0 0 12px 0;
+		font-size: 18px;
 		font-weight: 600;
-		color: #1d1d1f;
+		color: #000;
 	}
 
 	.welcome-section p {
-		margin: 0 0 24px 0;
-		font-size: 15px;
-		color: #86868b;
+		margin: 0 0 20px 0;
+		font-size: 14px;
+		line-height: 1.6;
+		color: #444;
 	}
 
-	.topic-pills {
+	.topic-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
 		display: flex;
 		flex-wrap: wrap;
 		gap: 10px;
-		justify-content: center;
 	}
 
-	.topic-pill {
-		padding: 10px 20px;
-		background: rgba(0, 0, 0, 0.03);
-		border: 1px solid rgba(0, 0, 0, 0.06);
-		border-radius: 24px;
-		font-size: 14px;
-		font-weight: 500;
-		color: #1d1d1f;
+	.topic-list button {
+		padding: 8px 16px;
+		background: #fff;
+		border: 1px solid #ccc;
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		font-size: 13px;
+		color: #333;
 		cursor: pointer;
-		transition: all 0.2s ease;
 	}
 
-	.topic-pill:hover {
-		background: rgba(0, 122, 255, 0.08);
-		border-color: rgba(0, 122, 255, 0.2);
-		color: #007AFF;
+	.topic-list button:hover {
+		background: #f0f0f0;
+		border-color: #000;
 	}
 </style>

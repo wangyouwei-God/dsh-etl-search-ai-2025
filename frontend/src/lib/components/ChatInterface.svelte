@@ -69,86 +69,65 @@
 	}
 </script>
 
-<div class="chat-panel">
-	<!-- Header -->
+<div class="query-panel">
 	<header class="panel-header">
-		<div class="header-title">
-			<span class="title-icon">
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-					<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-				</svg>
-			</span>
-			<div>
-				<h1>Dataset Query</h1>
-				<p>Environmental Research Data</p>
-			</div>
-		</div>
+		<h1>Dataset Query</h1>
 		{#if messages.length > 0}
-			<button class="btn-secondary" on:click={clearConversation}>
-				Clear
-			</button>
+			<button class="btn-text" on:click={clearConversation}>Clear</button>
 		{/if}
 	</header>
 
-	<!-- Messages Area -->
-	<main class="messages-scroll">
+	<main class="content-area">
 		{#if messages.length === 0}
-			<div class="empty-view">
-				<div class="empty-icon-wrapper">
-					<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-						<circle cx="11" cy="11" r="8"/>
-						<path d="m21 21-4.35-4.35"/>
-					</svg>
-				</div>
-				<h2>Explore Datasets</h2>
-				<p>Ask questions about environmental research data from the UK Centre for Ecology and Hydrology.</p>
-				
-				<div class="suggestions">
-					<button class="suggestion-pill" on:click={() => setQuery('What land cover datasets are available?')}>
-						Land Cover
+			<div class="intro">
+				<h2>Query Environmental Datasets</h2>
+				<p>
+					Enter a natural language query to search across research datasets 
+					from the UK Centre for Ecology and Hydrology catalogue.
+				</p>
+				<div class="example-queries">
+					<span class="label">Example queries:</span>
+					<button on:click={() => setQuery('What land cover datasets are available?')}>
+						Land cover datasets
 					</button>
-					<button class="suggestion-pill" on:click={() => setQuery('Show climate monitoring data')}>
-						Climate Data
+					<button on:click={() => setQuery('Climate monitoring data for UK')}>
+						Climate monitoring
 					</button>
-					<button class="suggestion-pill" on:click={() => setQuery('Biodiversity survey datasets')}>
-						Biodiversity
+					<button on:click={() => setQuery('Biodiversity survey data')}>
+						Biodiversity surveys
 					</button>
 				</div>
 			</div>
 		{:else}
-			<div class="messages-list">
+			<div class="conversation">
 				{#each messages as message}
-					<div class="message-row {message.role}">
-						<div class="message-bubble">
-							<div class="message-content">
-								{@html message.content.replace(/\n/g, '<br>')}
-							</div>
-							
-							{#if message.sources && message.sources.length > 0}
-								<div class="sources-card">
-									<span class="sources-label">Related Datasets</span>
-									<div class="sources-items">
-										{#each message.sources as source}
-											<a href="/datasets/{source.id}" class="source-item">
-												<span class="source-name">{source.title}</span>
-												<span class="source-match">{formatScore(source.relevance_score)}</span>
-											</a>
-										{/each}
-									</div>
-								</div>
-							{/if}
+					<div class="turn {message.role}">
+						<div class="turn-label">{message.role === 'user' ? 'Query' : 'Response'}</div>
+						<div class="turn-content">
+							{@html message.content.replace(/\n/g, '<br>')}
 						</div>
+						
+						{#if message.sources && message.sources.length > 0}
+							<div class="sources">
+								<div class="sources-header">Related Datasets ({message.sources.length})</div>
+								<ul>
+									{#each message.sources as source}
+										<li>
+											<a href="/datasets/{source.id}">{source.title}</a>
+											<span class="match">Relevance: {formatScore(source.relevance_score)}</span>
+										</li>
+									{/each}
+								</ul>
+							</div>
+						{/if}
 					</div>
 				{/each}
 
 				{#if isLoading}
-					<div class="message-row assistant">
-						<div class="message-bubble">
-							<div class="typing-dots">
-								<span></span>
-								<span></span>
-								<span></span>
-							</div>
+					<div class="turn assistant">
+						<div class="turn-label">Response</div>
+						<div class="turn-content loading">
+							Processing query...
 						</div>
 					</div>
 				{/if}
@@ -156,373 +135,299 @@
 		{/if}
 	</main>
 
-	<!-- Error -->
 	{#if error}
-		<div class="error-strip">
-			{error}
-		</div>
+		<div class="error-bar">{error}</div>
 	{/if}
 
-	<!-- Input -->
-	<footer class="input-bar">
-		<div class="input-field">
-			<textarea
-				bind:value={inputMessage}
-				on:keydown={handleKeydown}
-				placeholder="Ask a question..."
-				disabled={isLoading}
-				rows="1"
-			></textarea>
-			<button 
-				class="btn-send" 
-				on:click={handleSend} 
-				disabled={isLoading || !inputMessage.trim()}
-			>
-				<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-					<path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-				</svg>
-			</button>
-		</div>
+	<footer class="input-area">
+		<label for="query-input" class="sr-only">Enter query</label>
+		<textarea
+			id="query-input"
+			bind:value={inputMessage}
+			on:keydown={handleKeydown}
+			placeholder="Enter your query..."
+			disabled={isLoading}
+			rows="2"
+		></textarea>
+		<button 
+			class="btn-submit" 
+			on:click={handleSend} 
+			disabled={isLoading || !inputMessage.trim()}
+		>
+			{isLoading ? 'Processing...' : 'Submit Query'}
+		</button>
 	</footer>
 </div>
 
 <style>
-	/* === Base === */
-	.chat-panel {
+	.query-panel {
 		display: flex;
 		flex-direction: column;
-		height: 640px;
-		max-height: 85vh;
-		background: rgba(255, 255, 255, 0.72);
-		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
-		border: 1px solid rgba(0, 0, 0, 0.08);
-		border-radius: 16px;
-		box-shadow: 
-			0 0 0 0.5px rgba(0, 0, 0, 0.05),
-			0 2px 8px rgba(0, 0, 0, 0.04),
-			0 8px 24px rgba(0, 0, 0, 0.06);
-		overflow: hidden;
-		font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+		height: 600px;
+		max-height: 80vh;
+		background: #fff;
+		border: 1px solid #d0d0d0;
+		font-family: 'Georgia', 'Times New Roman', serif;
 	}
 
-	/* === Header === */
+	/* Header */
 	.panel-header {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 16px 20px;
-		background: rgba(255, 255, 255, 0.6);
-		border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+		padding: 14px 20px;
+		border-bottom: 1px solid #d0d0d0;
+		background: #fafafa;
 	}
 
-	.header-title {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-	}
-
-	.title-icon {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 36px;
-		height: 36px;
-		background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
-		border-radius: 10px;
-		color: white;
-	}
-
-	.header-title h1 {
+	.panel-header h1 {
 		margin: 0;
-		font-size: 15px;
+		font-size: 16px;
 		font-weight: 600;
-		color: #1d1d1f;
+		color: #000;
 		letter-spacing: -0.01em;
 	}
 
-	.header-title p {
-		margin: 1px 0 0 0;
+	.btn-text {
+		padding: 4px 10px;
+		background: none;
+		border: 1px solid #999;
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 		font-size: 12px;
-		color: #86868b;
-		letter-spacing: 0.01em;
-	}
-
-	.btn-secondary {
-		padding: 6px 14px;
-		background: rgba(0, 0, 0, 0.04);
-		border: none;
-		border-radius: 8px;
-		font-size: 13px;
-		font-weight: 500;
-		color: #1d1d1f;
+		color: #666;
 		cursor: pointer;
-		transition: all 0.2s ease;
 	}
 
-	.btn-secondary:hover {
-		background: rgba(0, 0, 0, 0.08);
+	.btn-text:hover {
+		background: #f0f0f0;
+		color: #000;
+		border-color: #000;
 	}
 
-	/* === Messages Area === */
-	.messages-scroll {
+	/* Content */
+	.content-area {
 		flex: 1;
 		overflow-y: auto;
-		padding: 24px 20px;
+		padding: 24px;
 	}
 
-	/* === Empty State === */
-	.empty-view {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		height: 100%;
-		text-align: center;
-		padding: 20px;
+	/* Intro */
+	.intro {
+		max-width: 520px;
 	}
 
-	.empty-icon-wrapper {
-		width: 72px;
-		height: 72px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: linear-gradient(135deg, rgba(0, 122, 255, 0.1) 0%, rgba(88, 86, 214, 0.1) 100%);
-		border-radius: 20px;
-		color: #007AFF;
-		margin-bottom: 20px;
-	}
-
-	.empty-view h2 {
-		margin: 0 0 8px 0;
-		font-size: 22px;
+	.intro h2 {
+		margin: 0 0 12px 0;
+		font-size: 20px;
 		font-weight: 600;
-		color: #1d1d1f;
-		letter-spacing: -0.02em;
+		color: #000;
 	}
 
-	.empty-view p {
-		margin: 0 0 28px 0;
-		max-width: 320px;
+	.intro p {
+		margin: 0 0 24px 0;
 		font-size: 14px;
-		line-height: 1.5;
-		color: #86868b;
+		line-height: 1.7;
+		color: #444;
 	}
 
-	.suggestions {
+	.example-queries {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px;
-		justify-content: center;
+		align-items: center;
 	}
 
-	.suggestion-pill {
-		padding: 10px 18px;
-		background: rgba(0, 0, 0, 0.03);
-		border: 1px solid rgba(0, 0, 0, 0.06);
-		border-radius: 20px;
-		font-size: 13px;
-		font-weight: 500;
-		color: #1d1d1f;
+	.example-queries .label {
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #888;
+		margin-right: 4px;
+	}
+
+	.example-queries button {
+		padding: 6px 12px;
+		background: #fff;
+		border: 1px solid #ccc;
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		font-size: 12px;
+		color: #333;
 		cursor: pointer;
-		transition: all 0.2s ease;
 	}
 
-	.suggestion-pill:hover {
-		background: rgba(0, 122, 255, 0.08);
-		border-color: rgba(0, 122, 255, 0.2);
-		color: #007AFF;
+	.example-queries button:hover {
+		background: #f5f5f5;
+		border-color: #000;
 	}
 
-	/* === Messages === */
-	.messages-list {
+	/* Conversation */
+	.conversation {
 		display: flex;
 		flex-direction: column;
-		gap: 12px;
+		gap: 24px;
 	}
 
-	.message-row {
-		display: flex;
+	.turn {
+		padding-bottom: 20px;
+		border-bottom: 1px solid #e5e5e5;
 	}
 
-	.message-row.user {
-		justify-content: flex-end;
+	.turn:last-child {
+		border-bottom: none;
 	}
 
-	.message-row.assistant {
-		justify-content: flex-start;
-	}
-
-	.message-bubble {
-		max-width: 85%;
-		padding: 12px 16px;
-		border-radius: 18px;
-	}
-
-	.message-row.user .message-bubble {
-		background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
-		border-bottom-right-radius: 6px;
-		color: white;
-	}
-
-	.message-row.assistant .message-bubble {
-		background: rgba(0, 0, 0, 0.04);
-		border-bottom-left-radius: 6px;
-		color: #1d1d1f;
-	}
-
-	.message-content {
-		font-size: 14px;
-		line-height: 1.55;
-	}
-
-	/* === Sources === */
-	.sources-card {
-		margin-top: 14px;
-		padding-top: 12px;
-		border-top: 1px solid rgba(0, 0, 0, 0.06);
-	}
-
-	.sources-label {
-		display: block;
-		margin-bottom: 10px;
+	.turn-label {
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 		font-size: 11px;
 		font-weight: 600;
 		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: #86868b;
+		letter-spacing: 0.08em;
+		color: #888;
+		margin-bottom: 8px;
 	}
 
-	.sources-items {
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
+	.turn.user .turn-label {
+		color: #000;
 	}
 
-	.source-item {
+	.turn-content {
+		font-size: 15px;
+		line-height: 1.7;
+		color: #1a1a1a;
+	}
+
+	.turn.user .turn-content {
+		font-style: italic;
+		color: #333;
+	}
+
+	.turn-content.loading {
+		color: #888;
+		font-style: italic;
+	}
+
+	/* Sources */
+	.sources {
+		margin-top: 16px;
+		padding: 14px 16px;
+		background: #f8f8f8;
+		border: 1px solid #e0e0e0;
+	}
+
+	.sources-header {
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #666;
+		margin-bottom: 10px;
+	}
+
+	.sources ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.sources li {
 		display: flex;
 		justify-content: space-between;
-		align-items: center;
-		padding: 10px 12px;
-		background: rgba(255, 255, 255, 0.8);
-		border: 1px solid rgba(0, 0, 0, 0.06);
-		border-radius: 10px;
+		align-items: baseline;
+		padding: 8px 0;
+		border-bottom: 1px solid #e8e8e8;
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	}
+
+	.sources li:last-child {
+		border-bottom: none;
+		padding-bottom: 0;
+	}
+
+	.sources a {
+		font-size: 13px;
+		color: #000;
 		text-decoration: none;
-		transition: all 0.15s ease;
 	}
 
-	.source-item:hover {
-		background: white;
-		border-color: rgba(0, 122, 255, 0.3);
-		box-shadow: 0 2px 8px rgba(0, 122, 255, 0.1);
+	.sources a:hover {
+		text-decoration: underline;
 	}
 
-	.source-name {
-		font-size: 13px;
-		font-weight: 500;
-		color: #1d1d1f;
+	.sources .match {
+		font-size: 11px;
+		color: #888;
 	}
 
-	.source-match {
-		font-size: 12px;
-		color: #86868b;
-	}
-
-	/* === Typing === */
-	.typing-dots {
-		display: flex;
-		gap: 5px;
-		padding: 4px 0;
-	}
-
-	.typing-dots span {
-		width: 7px;
-		height: 7px;
-		background: #86868b;
-		border-radius: 50%;
-		animation: pulse 1.4s infinite;
-	}
-
-	.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-	.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-	@keyframes pulse {
-		0%, 100% { opacity: 0.3; transform: scale(0.85); }
-		50% { opacity: 1; transform: scale(1); }
-	}
-
-	/* === Error === */
-	.error-strip {
+	/* Error */
+	.error-bar {
 		padding: 10px 20px;
-		background: #FFF2F2;
+		background: #fff0f0;
+		border-top: 1px solid #ffcccc;
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 		font-size: 13px;
-		color: #FF3B30;
+		color: #c00;
 	}
 
-	/* === Input === */
-	.input-bar {
-		padding: 12px 16px 16px;
-		background: rgba(255, 255, 255, 0.6);
-		border-top: 1px solid rgba(0, 0, 0, 0.06);
-	}
-
-	.input-field {
+	/* Input */
+	.input-area {
 		display: flex;
-		align-items: flex-end;
-		gap: 10px;
-		padding: 10px 12px;
-		background: white;
-		border: 1px solid rgba(0, 0, 0, 0.1);
-		border-radius: 22px;
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-		transition: all 0.2s ease;
+		gap: 12px;
+		padding: 16px 20px;
+		background: #fafafa;
+		border-top: 1px solid #d0d0d0;
 	}
 
-	.input-field:focus-within {
-		border-color: #007AFF;
-		box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12);
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		border: 0;
 	}
 
-	.input-field textarea {
+	.input-area textarea {
 		flex: 1;
-		border: none;
-		background: transparent;
-		font-family: inherit;
+		padding: 10px 12px;
+		background: #fff;
+		border: 1px solid #ccc;
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 		font-size: 14px;
 		line-height: 1.4;
 		resize: none;
+	}
+
+	.input-area textarea:focus {
 		outline: none;
-		color: #1d1d1f;
+		border-color: #000;
 	}
 
-	.input-field textarea::placeholder {
-		color: #86868b;
+	.input-area textarea::placeholder {
+		color: #999;
 	}
 
-	.btn-send {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 34px;
-		height: 34px;
-		background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+	.btn-submit {
+		padding: 10px 20px;
+		background: #000;
 		border: none;
-		border-radius: 50%;
-		color: white;
+		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		font-size: 13px;
+		font-weight: 500;
+		color: #fff;
 		cursor: pointer;
-		transition: all 0.2s ease;
-		flex-shrink: 0;
+		white-space: nowrap;
 	}
 
-	.btn-send:hover:not(:disabled) {
-		transform: scale(1.05);
-		box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+	.btn-submit:hover:not(:disabled) {
+		background: #333;
 	}
 
-	.btn-send:disabled {
-		background: #e5e5ea;
-		color: #aeaeb2;
+	.btn-submit:disabled {
+		background: #ccc;
 		cursor: not-allowed;
 	}
 </style>
