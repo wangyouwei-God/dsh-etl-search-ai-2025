@@ -983,4 +983,98 @@ Frontend:
 
 ---
 
+## Phase 6: Deployment & Reproducibility
+
+### Interaction 15: Docker Containerization
+
+**User Query:**
+```
+This is the final polish for the submission. I want to make the project Reproducible using Docker.
+
+Please perform the following actions:
+1. Backend Dockerfile: Use python:3.11-slim
+2. Frontend Dockerfile: Use node:18-alpine
+3. Docker Compose: Orchestrate both services with volume persistence
+4. Update README: Add Docker run instructions
+```
+
+**Claude Action:**
+Created `backend/Dockerfile`:
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 8000
+
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+Created `frontend/Dockerfile`:
+```dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+RUN npm run build
+
+EXPOSE 4173
+
+CMD ["npm", "run", "preview", "--", "--host"]
+```
+
+Created `docker-compose.yml`:
+```yaml
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/datasets.db:/app/datasets.db
+      - ./backend/chroma_db:/app/chroma_db
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:4173"
+    depends_on:
+      - backend
+```
+
+Created `.dockerignore` files for both backend and frontend to optimize build context.
+
+Updated `README.md` with Docker instructions:
+- Added "Run with Docker (Recommended)" section at top of Getting Started
+- Instructions: `docker-compose up --build`
+- Access URLs: Frontend (http://localhost:5173), API (http://localhost:8000/docs)
+
+```bash
+git add .
+git commit -m "chore: Add Docker support for reproducibility"
+git push origin main
+```
+
+Result: Successfully pushed Docker configuration (commit 1877e5e).
+
+Project is now fully reproducible with one-command deployment.
+
+---
+
 End of conversation log.
