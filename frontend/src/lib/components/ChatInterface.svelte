@@ -2,19 +2,16 @@
 	import { sendChatMessage } from '$lib/api';
 	import type { ChatMessage, ChatSource } from '$lib/types';
 
-	// State
 	let messages: ChatMessage[] = [];
 	let inputMessage = '';
 	let isLoading = false;
 	let error = '';
 	let conversationId: string | null = null;
 
-	// Generate unique ID
 	function generateId(): string {
 		return Math.random().toString(36).substring(2, 15);
 	}
 
-	// Send message
 	async function handleSend() {
 		if (!inputMessage.trim() || isLoading) return;
 
@@ -22,7 +19,6 @@
 		inputMessage = '';
 		error = '';
 
-		// Add user message
 		const userMsg: ChatMessage = {
 			id: generateId(),
 			role: 'user',
@@ -30,17 +26,12 @@
 			timestamp: new Date()
 		};
 		messages = [...messages, userMsg];
-
-		// Show loading
 		isLoading = true;
 
 		try {
 			const response = await sendChatMessage(userMessage, conversationId || undefined);
-
-			// Store conversation ID
 			conversationId = response.conversation_id;
 
-			// Add assistant message
 			const assistantMsg: ChatMessage = {
 				id: generateId(),
 				role: 'assistant',
@@ -50,13 +41,12 @@
 			};
 			messages = [...messages, assistantMsg];
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to send message';
+			error = err instanceof Error ? err.message : 'Request failed';
 		} finally {
 			isLoading = false;
 		}
 	}
 
-	// Handle Enter key
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter' && !event.shiftKey) {
 			event.preventDefault();
@@ -64,153 +54,132 @@
 		}
 	}
 
-	// Clear conversation
 	function clearConversation() {
 		messages = [];
 		conversationId = null;
 		error = '';
 	}
 
-	// Format relevance score
 	function formatScore(score: number): string {
 		return `${Math.round(score * 100)}%`;
 	}
+
+	function setQuery(text: string) {
+		inputMessage = text;
+	}
 </script>
 
-<div class="chat-container">
-	<header class="chat-header">
-		<div class="header-content">
-			<div class="header-icon">
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-					<path d="M20 6L9 17l-5-5" />
+<div class="chat-panel">
+	<!-- Header -->
+	<header class="panel-header">
+		<div class="header-title">
+			<span class="title-icon">
+				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
 				</svg>
-			</div>
-			<div class="header-text">
-				<h1>Dataset Discovery</h1>
-				<p>Environmental research data query interface</p>
+			</span>
+			<div>
+				<h1>Dataset Query</h1>
+				<p>Environmental Research Data</p>
 			</div>
 		</div>
 		{#if messages.length > 0}
-			<button class="btn-clear" on:click={clearConversation}>
-				New Session
+			<button class="btn-secondary" on:click={clearConversation}>
+				Clear
 			</button>
 		{/if}
 	</header>
 
-	<main class="messages-area">
+	<!-- Messages Area -->
+	<main class="messages-scroll">
 		{#if messages.length === 0}
-			<div class="empty-state">
-				<div class="empty-icon">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-						<circle cx="11" cy="11" r="8" />
-						<path d="m21 21-4.35-4.35" />
+			<div class="empty-view">
+				<div class="empty-icon-wrapper">
+					<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="11" cy="11" r="8"/>
+						<path d="m21 21-4.35-4.35"/>
 					</svg>
 				</div>
-				<h2>Query Environmental Datasets</h2>
-				<p>
-					Search across curated research datasets from the UK Centre for Ecology and Hydrology.
-					Enter your query below or select a suggested topic.
-				</p>
-				<div class="suggested-queries">
-					<button
-						class="query-chip"
-						on:click={() => (inputMessage = 'What datasets are available for land cover analysis?')}
-					>
-						Land cover analysis
+				<h2>Explore Datasets</h2>
+				<p>Ask questions about environmental research data from the UK Centre for Ecology and Hydrology.</p>
+				
+				<div class="suggestions">
+					<button class="suggestion-pill" on:click={() => setQuery('What land cover datasets are available?')}>
+						Land Cover
 					</button>
-					<button
-						class="query-chip"
-						on:click={() => (inputMessage = 'Show me climate and weather datasets')}
-					>
-						Climate data
+					<button class="suggestion-pill" on:click={() => setQuery('Show climate monitoring data')}>
+						Climate Data
 					</button>
-					<button
-						class="query-chip"
-						on:click={() => (inputMessage = 'What biodiversity monitoring data exists?')}
-					>
-						Biodiversity monitoring
+					<button class="suggestion-pill" on:click={() => setQuery('Biodiversity survey datasets')}>
+						Biodiversity
 					</button>
 				</div>
 			</div>
 		{:else}
-			<div class="message-list">
+			<div class="messages-list">
 				{#each messages as message}
-					<article class="message {message.role}">
-						<div class="message-indicator">
-							{#if message.role === 'user'}
-								<span class="indicator-user">Q</span>
-							{:else}
-								<span class="indicator-system">A</span>
-							{/if}
-						</div>
-						<div class="message-body">
-							<div class="message-text">{@html message.content.replace(/\n/g, '<br>')}</div>
-
+					<div class="message-row {message.role}">
+						<div class="message-bubble">
+							<div class="message-content">
+								{@html message.content.replace(/\n/g, '<br>')}
+							</div>
+							
 							{#if message.sources && message.sources.length > 0}
-								<div class="sources-panel">
-									<h4>Related Datasets</h4>
-									<ul class="sources-list">
+								<div class="sources-card">
+									<span class="sources-label">Related Datasets</span>
+									<div class="sources-items">
 										{#each message.sources as source}
-											<li>
-												<a href="/datasets/{source.id}" class="source-link">
-													<span class="source-title">{source.title}</span>
-													<span class="source-score">{formatScore(source.relevance_score)} match</span>
-												</a>
-											</li>
+											<a href="/datasets/{source.id}" class="source-item">
+												<span class="source-name">{source.title}</span>
+												<span class="source-match">{formatScore(source.relevance_score)}</span>
+											</a>
 										{/each}
-									</ul>
+									</div>
 								</div>
 							{/if}
 						</div>
-					</article>
+					</div>
 				{/each}
 
 				{#if isLoading}
-					<article class="message assistant">
-						<div class="message-indicator">
-							<span class="indicator-system">A</span>
-						</div>
-						<div class="message-body">
-							<div class="loading-indicator">
+					<div class="message-row assistant">
+						<div class="message-bubble">
+							<div class="typing-dots">
 								<span></span>
 								<span></span>
 								<span></span>
 							</div>
 						</div>
-					</article>
+					</div>
 				{/if}
 			</div>
 		{/if}
 	</main>
 
+	<!-- Error -->
 	{#if error}
-		<div class="error-banner">
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="error-icon">
-				<circle cx="12" cy="12" r="10" />
-				<line x1="12" y1="8" x2="12" y2="12" />
-				<line x1="12" y1="16" x2="12.01" y2="16" />
-			</svg>
-			<span>{error}</span>
+		<div class="error-strip">
+			{error}
 		</div>
 	{/if}
 
-	<footer class="input-area">
-		<div class="input-wrapper">
+	<!-- Input -->
+	<footer class="input-bar">
+		<div class="input-field">
 			<textarea
 				bind:value={inputMessage}
 				on:keydown={handleKeydown}
-				placeholder="Enter your query..."
+				placeholder="Ask a question..."
 				disabled={isLoading}
 				rows="1"
 			></textarea>
 			<button 
-				class="btn-submit" 
+				class="btn-send" 
 				on:click={handleSend} 
 				disabled={isLoading || !inputMessage.trim()}
-				aria-label="Submit query"
 			>
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-					<path d="M5 12h14M12 5l7 7-7 7" />
+				<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+					<path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
 				</svg>
 			</button>
 		</div>
@@ -218,370 +187,342 @@
 </div>
 
 <style>
-	.chat-container {
+	/* === Base === */
+	.chat-panel {
 		display: flex;
 		flex-direction: column;
-		height: 600px;
-		max-height: 80vh;
-		background: #ffffff;
-		border: 1px solid #e5e7eb;
-		border-radius: 8px;
+		height: 640px;
+		max-height: 85vh;
+		background: rgba(255, 255, 255, 0.72);
+		backdrop-filter: blur(20px);
+		-webkit-backdrop-filter: blur(20px);
+		border: 1px solid rgba(0, 0, 0, 0.08);
+		border-radius: 16px;
+		box-shadow: 
+			0 0 0 0.5px rgba(0, 0, 0, 0.05),
+			0 2px 8px rgba(0, 0, 0, 0.04),
+			0 8px 24px rgba(0, 0, 0, 0.06);
 		overflow: hidden;
-		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+		font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 	}
 
-	/* Header */
-	.chat-header {
+	/* === Header === */
+	.panel-header {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 16px 24px;
-		background: #fafafa;
-		border-bottom: 1px solid #e5e7eb;
+		padding: 16px 20px;
+		background: rgba(255, 255, 255, 0.6);
+		border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 	}
 
-	.header-content {
+	.header-title {
 		display: flex;
 		align-items: center;
 		gap: 12px;
 	}
 
-	.header-icon {
-		width: 32px;
-		height: 32px;
-		background: #1a1a2e;
-		border-radius: 6px;
+	.title-icon {
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		width: 36px;
+		height: 36px;
+		background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+		border-radius: 10px;
+		color: white;
 	}
 
-	.header-icon svg {
-		width: 18px;
-		height: 18px;
-		color: #ffffff;
-	}
-
-	.header-text h1 {
+	.header-title h1 {
 		margin: 0;
-		font-size: 1rem;
+		font-size: 15px;
 		font-weight: 600;
-		color: #1a1a2e;
+		color: #1d1d1f;
 		letter-spacing: -0.01em;
 	}
 
-	.header-text p {
-		margin: 2px 0 0 0;
-		font-size: 0.75rem;
-		color: #6b7280;
+	.header-title p {
+		margin: 1px 0 0 0;
+		font-size: 12px;
+		color: #86868b;
 		letter-spacing: 0.01em;
 	}
 
-	.btn-clear {
-		padding: 8px 14px;
-		background: transparent;
-		border: 1px solid #d1d5db;
-		border-radius: 6px;
-		font-size: 0.8125rem;
+	.btn-secondary {
+		padding: 6px 14px;
+		background: rgba(0, 0, 0, 0.04);
+		border: none;
+		border-radius: 8px;
+		font-size: 13px;
 		font-weight: 500;
-		color: #4b5563;
+		color: #1d1d1f;
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition: all 0.2s ease;
 	}
 
-	.btn-clear:hover {
-		background: #f3f4f6;
-		border-color: #9ca3af;
+	.btn-secondary:hover {
+		background: rgba(0, 0, 0, 0.08);
 	}
 
-	/* Messages Area */
-	.messages-area {
+	/* === Messages Area === */
+	.messages-scroll {
 		flex: 1;
 		overflow-y: auto;
-		padding: 24px;
-		background: #ffffff;
+		padding: 24px 20px;
 	}
 
-	/* Empty State */
-	.empty-state {
+	/* === Empty State === */
+	.empty-view {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		height: 100%;
 		text-align: center;
-		padding: 40px 20px;
+		padding: 20px;
 	}
 
-	.empty-icon {
-		width: 48px;
-		height: 48px;
+	.empty-icon-wrapper {
+		width: 72px;
+		height: 72px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: linear-gradient(135deg, rgba(0, 122, 255, 0.1) 0%, rgba(88, 86, 214, 0.1) 100%);
+		border-radius: 20px;
+		color: #007AFF;
 		margin-bottom: 20px;
-		color: #9ca3af;
 	}
 
-	.empty-icon svg {
-		width: 100%;
-		height: 100%;
-	}
-
-	.empty-state h2 {
+	.empty-view h2 {
 		margin: 0 0 8px 0;
-		font-size: 1.25rem;
+		font-size: 22px;
 		font-weight: 600;
-		color: #1a1a2e;
+		color: #1d1d1f;
+		letter-spacing: -0.02em;
 	}
 
-	.empty-state p {
-		margin: 0 0 24px 0;
-		max-width: 400px;
-		font-size: 0.875rem;
-		line-height: 1.6;
-		color: #6b7280;
+	.empty-view p {
+		margin: 0 0 28px 0;
+		max-width: 320px;
+		font-size: 14px;
+		line-height: 1.5;
+		color: #86868b;
 	}
 
-	.suggested-queries {
+	.suggestions {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px;
 		justify-content: center;
 	}
 
-	.query-chip {
-		padding: 8px 16px;
-		background: #f9fafb;
-		border: 1px solid #e5e7eb;
+	.suggestion-pill {
+		padding: 10px 18px;
+		background: rgba(0, 0, 0, 0.03);
+		border: 1px solid rgba(0, 0, 0, 0.06);
 		border-radius: 20px;
-		font-size: 0.8125rem;
-		color: #374151;
+		font-size: 13px;
+		font-weight: 500;
+		color: #1d1d1f;
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition: all 0.2s ease;
 	}
 
-	.query-chip:hover {
-		background: #f3f4f6;
-		border-color: #1a1a2e;
-		color: #1a1a2e;
+	.suggestion-pill:hover {
+		background: rgba(0, 122, 255, 0.08);
+		border-color: rgba(0, 122, 255, 0.2);
+		color: #007AFF;
 	}
 
-	/* Message List */
-	.message-list {
+	/* === Messages === */
+	.messages-list {
 		display: flex;
 		flex-direction: column;
-		gap: 20px;
-	}
-
-	.message {
-		display: flex;
 		gap: 12px;
 	}
 
-	.message-indicator {
-		flex-shrink: 0;
-	}
-
-	.message-indicator span {
+	.message-row {
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 28px;
-		height: 28px;
-		border-radius: 4px;
-		font-size: 0.75rem;
-		font-weight: 600;
 	}
 
-	.indicator-user {
-		background: #1a1a2e;
-		color: #ffffff;
+	.message-row.user {
+		justify-content: flex-end;
 	}
 
-	.indicator-system {
-		background: #e5e7eb;
-		color: #374151;
+	.message-row.assistant {
+		justify-content: flex-start;
 	}
 
-	.message-body {
-		flex: 1;
-		min-width: 0;
+	.message-bubble {
+		max-width: 85%;
+		padding: 12px 16px;
+		border-radius: 18px;
 	}
 
-	.message-text {
-		font-size: 0.9375rem;
-		line-height: 1.65;
-		color: #1f2937;
+	.message-row.user .message-bubble {
+		background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+		border-bottom-right-radius: 6px;
+		color: white;
 	}
 
-	.message.user .message-text {
-		color: #1a1a2e;
-		font-weight: 500;
+	.message-row.assistant .message-bubble {
+		background: rgba(0, 0, 0, 0.04);
+		border-bottom-left-radius: 6px;
+		color: #1d1d1f;
 	}
 
-	/* Sources Panel */
-	.sources-panel {
-		margin-top: 16px;
-		padding: 14px 16px;
-		background: #f9fafb;
-		border: 1px solid #e5e7eb;
-		border-radius: 6px;
+	.message-content {
+		font-size: 14px;
+		line-height: 1.55;
 	}
 
-	.sources-panel h4 {
-		margin: 0 0 10px 0;
-		font-size: 0.75rem;
+	/* === Sources === */
+	.sources-card {
+		margin-top: 14px;
+		padding-top: 12px;
+		border-top: 1px solid rgba(0, 0, 0, 0.06);
+	}
+
+	.sources-label {
+		display: block;
+		margin-bottom: 10px;
+		font-size: 11px;
 		font-weight: 600;
 		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: #6b7280;
+		letter-spacing: 0.04em;
+		color: #86868b;
 	}
 
-	.sources-list {
-		list-style: none;
-		margin: 0;
-		padding: 0;
+	.sources-items {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
 	}
 
-	.sources-list li {
-		margin-bottom: 6px;
-	}
-
-	.sources-list li:last-child {
-		margin-bottom: 0;
-	}
-
-	.source-link {
+	.source-item {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 8px 10px;
-		background: #ffffff;
-		border: 1px solid #e5e7eb;
-		border-radius: 4px;
+		padding: 10px 12px;
+		background: rgba(255, 255, 255, 0.8);
+		border: 1px solid rgba(0, 0, 0, 0.06);
+		border-radius: 10px;
 		text-decoration: none;
 		transition: all 0.15s ease;
 	}
 
-	.source-link:hover {
-		border-color: #1a1a2e;
+	.source-item:hover {
+		background: white;
+		border-color: rgba(0, 122, 255, 0.3);
+		box-shadow: 0 2px 8px rgba(0, 122, 255, 0.1);
 	}
 
-	.source-title {
-		font-size: 0.8125rem;
-		color: #1a1a2e;
+	.source-name {
+		font-size: 13px;
 		font-weight: 500;
+		color: #1d1d1f;
 	}
 
-	.source-score {
-		font-size: 0.75rem;
-		color: #6b7280;
+	.source-match {
+		font-size: 12px;
+		color: #86868b;
 	}
 
-	/* Loading Indicator */
-	.loading-indicator {
+	/* === Typing === */
+	.typing-dots {
 		display: flex;
-		gap: 4px;
+		gap: 5px;
 		padding: 4px 0;
 	}
 
-	.loading-indicator span {
-		width: 6px;
-		height: 6px;
+	.typing-dots span {
+		width: 7px;
+		height: 7px;
+		background: #86868b;
 		border-radius: 50%;
-		background: #9ca3af;
-		animation: pulse 1.2s infinite;
+		animation: pulse 1.4s infinite;
 	}
 
-	.loading-indicator span:nth-child(2) {
-		animation-delay: 0.15s;
-	}
-
-	.loading-indicator span:nth-child(3) {
-		animation-delay: 0.3s;
-	}
+	.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+	.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
 
 	@keyframes pulse {
-		0%, 100% { opacity: 0.3; }
-		50% { opacity: 1; }
+		0%, 100% { opacity: 0.3; transform: scale(0.85); }
+		50% { opacity: 1; transform: scale(1); }
 	}
 
-	/* Error Banner */
-	.error-banner {
+	/* === Error === */
+	.error-strip {
+		padding: 10px 20px;
+		background: #FFF2F2;
+		font-size: 13px;
+		color: #FF3B30;
+	}
+
+	/* === Input === */
+	.input-bar {
+		padding: 12px 16px 16px;
+		background: rgba(255, 255, 255, 0.6);
+		border-top: 1px solid rgba(0, 0, 0, 0.06);
+	}
+
+	.input-field {
 		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 12px 24px;
-		background: #fef2f2;
-		border-top: 1px solid #fecaca;
-		font-size: 0.8125rem;
-		color: #991b1b;
-	}
-
-	.error-icon {
-		width: 16px;
-		height: 16px;
-		flex-shrink: 0;
-	}
-
-	/* Input Area */
-	.input-area {
-		padding: 16px 24px;
-		background: #fafafa;
-		border-top: 1px solid #e5e7eb;
-	}
-
-	.input-wrapper {
-		display: flex;
-		gap: 10px;
 		align-items: flex-end;
+		gap: 10px;
+		padding: 10px 12px;
+		background: white;
+		border: 1px solid rgba(0, 0, 0, 0.1);
+		border-radius: 22px;
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+		transition: all 0.2s ease;
 	}
 
-	.input-wrapper textarea {
+	.input-field:focus-within {
+		border-color: #007AFF;
+		box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12);
+	}
+
+	.input-field textarea {
 		flex: 1;
-		padding: 12px 14px;
-		background: #ffffff;
-		border: 1px solid #d1d5db;
-		border-radius: 6px;
+		border: none;
+		background: transparent;
 		font-family: inherit;
-		font-size: 0.9375rem;
+		font-size: 14px;
 		line-height: 1.4;
 		resize: none;
-		transition: border-color 0.15s ease;
-	}
-
-	.input-wrapper textarea:focus {
 		outline: none;
-		border-color: #1a1a2e;
+		color: #1d1d1f;
 	}
 
-	.input-wrapper textarea::placeholder {
-		color: #9ca3af;
+	.input-field textarea::placeholder {
+		color: #86868b;
 	}
 
-	.btn-submit {
+	.btn-send {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 42px;
-		height: 42px;
-		background: #1a1a2e;
+		width: 34px;
+		height: 34px;
+		background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
 		border: none;
-		border-radius: 6px;
+		border-radius: 50%;
+		color: white;
 		cursor: pointer;
-		transition: background 0.15s ease;
+		transition: all 0.2s ease;
+		flex-shrink: 0;
 	}
 
-	.btn-submit svg {
-		width: 18px;
-		height: 18px;
-		color: #ffffff;
+	.btn-send:hover:not(:disabled) {
+		transform: scale(1.05);
+		box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
 	}
 
-	.btn-submit:hover:not(:disabled) {
-		background: #2d2d44;
-	}
-
-	.btn-submit:disabled {
-		background: #d1d5db;
+	.btn-send:disabled {
+		background: #e5e5ea;
+		color: #aeaeb2;
 		cursor: not-allowed;
 	}
 </style>

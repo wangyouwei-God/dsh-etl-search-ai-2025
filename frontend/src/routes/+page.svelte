@@ -3,7 +3,6 @@
 	import DatasetCard from '$lib/components/DatasetCard.svelte';
 	import { searchDatasets, APIError } from '$lib/api';
 	import type { SearchResponse } from '$lib/types';
-	import { AlertCircle, Database, Search } from 'lucide-svelte';
 
 	let query = '';
 	let results: SearchResponse | null = null;
@@ -35,61 +34,60 @@
 	<meta name="description" content="Search and discover environmental research datasets" />
 </svelte:head>
 
-<div class="space-y-8">
-	<!-- Hero Section -->
-	<div class="text-center space-y-4 py-8">
-		<div class="flex items-center justify-center gap-3">
-			<Database class="w-7 h-7 text-foreground opacity-80" />
-			<h2 class="text-3xl font-semibold text-foreground tracking-tight">Environmental Dataset Discovery</h2>
+<div class="page-wrapper">
+	<!-- Hero -->
+	<header class="hero-section">
+		<div class="hero-icon">
+			<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+				<ellipse cx="12" cy="5" rx="9" ry="3"/>
+				<path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+				<path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+			</svg>
 		</div>
-		<p class="text-base text-muted-foreground max-w-xl mx-auto">
-			Search across curated research datasets from the UK Centre for Ecology and Hydrology
-		</p>
-		<a 
-			href="/chat" 
-			class="inline-flex items-center gap-2 px-5 py-2.5 bg-foreground text-background rounded-md hover:opacity-90 transition-opacity mt-4 text-sm font-medium"
-		>
-			<Search class="w-4 h-4" />
-			Advanced Query Interface
+		<h1>Environmental Dataset Discovery</h1>
+		<p>Search across curated research datasets from the UK Centre for Ecology and Hydrology</p>
+		<a href="/chat" class="btn-query">
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<circle cx="11" cy="11" r="8"/>
+				<path d="m21 21-4.35-4.35"/>
+			</svg>
+			Advanced Query
 		</a>
-	</div>
+	</header>
 
-	<!-- Search Bar -->
+	<!-- Search -->
 	<SearchBar {isLoading} on:search={handleSearch} />
 
-	<!-- Error Display -->
+	<!-- Error -->
 	{#if error}
-		<div class="max-w-3xl mx-auto">
-			<div class="flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
-				<AlertCircle class="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-				<div>
-					<h3 class="font-semibold text-destructive">Search Error</h3>
-					<p class="text-sm text-destructive/90">{error}</p>
-				</div>
+		<div class="error-card">
+			<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<circle cx="12" cy="12" r="10"/>
+				<line x1="12" y1="8" x2="12" y2="12"/>
+				<line x1="12" y1="16" x2="12.01" y2="16"/>
+			</svg>
+			<div>
+				<strong>Search Error</strong>
+				<span>{error}</span>
 			</div>
 		</div>
 	{/if}
 
 	<!-- Results -->
 	{#if results}
-		<div class="max-w-5xl mx-auto space-y-6">
-			<div class="flex items-center justify-between">
-				<h3 class="text-2xl font-semibold text-foreground">
-					{results.total_results} result{results.total_results !== 1 ? 's' : ''} found
-				</h3>
-				<div class="text-sm text-muted-foreground">
-					Search completed in {results.processing_time_ms.toFixed(0)}ms
-				</div>
+		<div class="results-section">
+			<div class="results-header">
+				<h2>{results.total_results} result{results.total_results !== 1 ? 's' : ''}</h2>
+				<span class="results-time">{results.processing_time_ms.toFixed(0)}ms</span>
 			</div>
 
 			{#if results.total_results === 0}
-				<div class="text-center py-12">
-					<p class="text-muted-foreground text-lg">
-						No datasets found for "{query}". Try a different search term.
-					</p>
+				<div class="empty-results">
+					<p>No datasets found for "{query}"</p>
+					<span>Try different keywords or check spelling</span>
 				</div>
 			{:else}
-				<div class="grid gap-6">
+				<div class="results-grid">
 					{#each results.results as dataset (dataset.id)}
 						<DatasetCard {dataset} />
 					{/each}
@@ -97,24 +95,197 @@
 			{/if}
 		</div>
 	{:else if !isLoading}
-		<!-- Welcome State -->
-		<div class="text-center py-16 max-w-2xl mx-auto">
-			<div class="space-y-4">
-				<h3 class="text-2xl font-semibold text-foreground">Ready to explore?</h3>
-				<p class="text-muted-foreground">
-					Try searching for topics like "land cover", "climate data", or "biodiversity"
-				</p>
-				<div class="flex flex-wrap justify-center gap-2 pt-4">
-					{#each ['land cover mapping', 'environmental data', 'geographic information'] as suggestion}
-						<button
-							on:click={() => handleSearch(new CustomEvent('search', { detail: suggestion }))}
-							class="px-4 py-2 text-sm border border-border rounded-full hover:bg-secondary transition-colors"
-						>
-							{suggestion}
-						</button>
-					{/each}
-				</div>
+		<!-- Welcome -->
+		<div class="welcome-section">
+			<h2>Ready to explore?</h2>
+			<p>Search for topics like land cover, climate data, or biodiversity</p>
+			<div class="topic-pills">
+				{#each ['land cover mapping', 'climate monitoring', 'biodiversity survey'] as topic}
+					<button class="topic-pill" on:click={() => handleSearch(new CustomEvent('search', { detail: topic }))}>
+						{topic}
+					</button>
+				{/each}
 			</div>
 		</div>
 	{/if}
 </div>
+
+<style>
+	.page-wrapper {
+		max-width: 960px;
+		margin: 0 auto;
+		padding: 40px 24px 80px;
+		font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+	}
+
+	/* Hero */
+	.hero-section {
+		text-align: center;
+		padding: 48px 0 40px;
+	}
+
+	.hero-icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 56px;
+		height: 56px;
+		background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+		border-radius: 16px;
+		color: white;
+		margin-bottom: 20px;
+	}
+
+	.hero-section h1 {
+		margin: 0 0 10px 0;
+		font-size: 32px;
+		font-weight: 600;
+		color: #1d1d1f;
+		letter-spacing: -0.02em;
+	}
+
+	.hero-section p {
+		margin: 0 0 24px 0;
+		font-size: 16px;
+		color: #86868b;
+		max-width: 400px;
+		margin-left: auto;
+		margin-right: auto;
+	}
+
+	.btn-query {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 12px 24px;
+		background: #1d1d1f;
+		color: white;
+		border-radius: 24px;
+		font-size: 14px;
+		font-weight: 500;
+		text-decoration: none;
+		transition: all 0.2s ease;
+	}
+
+	.btn-query:hover {
+		background: #000;
+		transform: scale(1.02);
+	}
+
+	/* Error */
+	.error-card {
+		display: flex;
+		align-items: flex-start;
+		gap: 12px;
+		max-width: 600px;
+		margin: 24px auto;
+		padding: 16px 20px;
+		background: #FFF2F2;
+		border: 1px solid #FFE5E5;
+		border-radius: 12px;
+		color: #FF3B30;
+	}
+
+	.error-card strong {
+		display: block;
+		font-size: 14px;
+		margin-bottom: 2px;
+	}
+
+	.error-card span {
+		font-size: 13px;
+		opacity: 0.9;
+	}
+
+	/* Results */
+	.results-section {
+		margin-top: 32px;
+	}
+
+	.results-header {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		margin-bottom: 20px;
+		padding-bottom: 16px;
+		border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+	}
+
+	.results-header h2 {
+		margin: 0;
+		font-size: 22px;
+		font-weight: 600;
+		color: #1d1d1f;
+	}
+
+	.results-time {
+		font-size: 13px;
+		color: #86868b;
+	}
+
+	.results-grid {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+	}
+
+	.empty-results {
+		text-align: center;
+		padding: 60px 20px;
+	}
+
+	.empty-results p {
+		margin: 0 0 8px 0;
+		font-size: 17px;
+		color: #1d1d1f;
+	}
+
+	.empty-results span {
+		font-size: 14px;
+		color: #86868b;
+	}
+
+	/* Welcome */
+	.welcome-section {
+		text-align: center;
+		padding: 60px 20px;
+	}
+
+	.welcome-section h2 {
+		margin: 0 0 8px 0;
+		font-size: 22px;
+		font-weight: 600;
+		color: #1d1d1f;
+	}
+
+	.welcome-section p {
+		margin: 0 0 24px 0;
+		font-size: 15px;
+		color: #86868b;
+	}
+
+	.topic-pills {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px;
+		justify-content: center;
+	}
+
+	.topic-pill {
+		padding: 10px 20px;
+		background: rgba(0, 0, 0, 0.03);
+		border: 1px solid rgba(0, 0, 0, 0.06);
+		border-radius: 24px;
+		font-size: 14px;
+		font-weight: 500;
+		color: #1d1d1f;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.topic-pill:hover {
+		background: rgba(0, 122, 255, 0.08);
+		border-color: rgba(0, 122, 255, 0.2);
+		color: #007AFF;
+	}
+</style>

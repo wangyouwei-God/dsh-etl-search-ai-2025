@@ -6,48 +6,59 @@
 	<title>Dataset Query | UK Centre for Ecology and Hydrology</title>
 </svelte:head>
 
-<div class="query-page">
-	<div class="query-wrapper">
+<div class="page-container">
+	<div class="content-wrapper">
 		<ChatInterface />
 	</div>
 	
-	<nav class="back-navigation">
-		<a href="/">Return to Search</a>
+	<nav class="nav-back">
+		<a href="/">
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<path d="M19 12H5M12 19l-7-7 7-7"/>
+			</svg>
+			Back to Search
+		</a>
 	</nav>
 </div>
 
 <style>
-	.query-page {
+	.page-container {
 		min-height: 100vh;
-		background: #f8f9fa;
+		background: linear-gradient(180deg, #f5f5f7 0%, #e8e8ed 100%);
 		padding: 48px 24px;
 	}
 	
-	.query-wrapper {
-		max-width: 720px;
+	.content-wrapper {
+		max-width: 680px;
 		margin: 0 auto;
 	}
 	
-	.back-navigation {
-		max-width: 720px;
-		margin: 20px auto 0;
+	.nav-back {
+		max-width: 680px;
+		margin: 24px auto 0;
 	}
 	
-	.back-navigation a {
-		color: #6b7280;
-		text-decoration: none;
-		font-size: 0.875rem;
+	.nav-back a {
 		display: inline-flex;
 		align-items: center;
-		gap: 4px;
-		transition: color 0.15s ease;
+		gap: 6px;
+		color: #86868b;
+		text-decoration: none;
+		font-size: 14px;
+		font-weight: 500;
+		font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+		transition: color 0.2s ease;
 	}
 	
-	.back-navigation a::before {
-		content: '←';
+	.nav-back a:hover {
+		color: #007AFF;
 	}
 	
-	.back-navigation a:hover {
-		color: #1a1a2e;
+	.nav-back svg {
+		transition: transform 0.2s ease;
+	}
+	
+	.nav-back a:hover svg {
+		transform: translateX(-3px);
 	}
 </style>
