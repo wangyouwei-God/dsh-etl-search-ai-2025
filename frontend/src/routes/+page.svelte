@@ -34,92 +34,121 @@
 	<meta name="description" content="Search environmental research datasets" />
 </svelte:head>
 
-<div class="page-content">
-	<!-- Header -->
+<div class="page">
 	<header class="page-header">
-		<h1>Environmental Dataset Search</h1>
-		<p>UK Centre for Ecology and Hydrology Data Catalogue</p>
+		<div class="brand">
+			<div class="brand-mark"></div>
+			<div class="brand-text">
+				<h1>Environmental Dataset Search</h1>
+				<span>UK Centre for Ecology and Hydrology</span>
+			</div>
+		</div>
 	</header>
 
-	<!-- Search -->
-	<SearchBar {isLoading} on:search={handleSearch} />
+	<main class="main-content">
+		<SearchBar {isLoading} on:search={handleSearch} />
 
-	<!-- Navigation -->
-	<nav class="secondary-nav">
-		<a href="/chat">Advanced Query Interface</a>
-	</nav>
+		<nav class="secondary-nav">
+			<a href="/chat">Advanced Query Interface</a>
+		</nav>
 
-	<!-- Error -->
-	{#if error}
-		<div class="error-message">
-			<strong>Error:</strong> {error}
-		</div>
-	{/if}
-
-	<!-- Results -->
-	{#if results}
-		<section class="results-section">
-			<div class="results-meta">
-				<span class="results-count">{results.total_results} result{results.total_results !== 1 ? 's' : ''}</span>
-				<span class="results-time">{results.processing_time_ms.toFixed(0)}ms</span>
+		{#if error}
+			<div class="error-card">
+				<strong>Error:</strong> {error}
 			</div>
+		{/if}
 
-			{#if results.total_results === 0}
-				<p class="no-results">No datasets found for "{query}". Please try different search terms.</p>
-			{:else}
-				<div class="results-list">
-					{#each results.results as dataset (dataset.id)}
-						<DatasetCard {dataset} />
-					{/each}
+		{#if results}
+			<section class="results-section">
+				<header class="results-header">
+					<h2>{results.total_results} result{results.total_results !== 1 ? 's' : ''}</h2>
+					<span class="meta">{results.processing_time_ms.toFixed(0)}ms</span>
+				</header>
+
+				{#if results.total_results === 0}
+					<p class="empty-state">No datasets found for "{query}". Try different search terms.</p>
+				{:else}
+					<div class="results-list">
+						{#each results.results as dataset (dataset.id)}
+							<DatasetCard {dataset} />
+						{/each}
+					</div>
+				{/if}
+			</section>
+		{:else if !isLoading}
+			<section class="welcome-card">
+				<h2>Search the Catalogue</h2>
+				<p>Enter keywords to search across curated environmental research datasets.</p>
+				<div class="topics">
+					<span class="topics-label">Example topics</span>
+					<div class="topic-buttons">
+						{#each ['Land cover mapping', 'Climate data', 'Biodiversity monitoring'] as topic}
+							<button on:click={() => handleSearch(new CustomEvent('search', { detail: topic }))}>
+								{topic}
+							</button>
+						{/each}
+					</div>
 				</div>
-			{/if}
-		</section>
-	{:else if !isLoading}
-		<!-- Welcome -->
-		<section class="welcome-section">
-			<h2>Search the Catalogue</h2>
-			<p>Enter keywords to search across environmental research datasets. Example topics:</p>
-			<ul class="topic-list">
-				{#each ['Land cover mapping', 'Climate and weather data', 'Biodiversity monitoring'] as topic}
-					<li>
-						<button on:click={() => handleSearch(new CustomEvent('search', { detail: topic }))}>
-							{topic}
-						</button>
-					</li>
-				{/each}
-			</ul>
-		</section>
-	{/if}
+			</section>
+		{/if}
+	</main>
+
+	<footer class="page-footer">
+		<span>Research Software Engineering Assessment</span>
+	</footer>
 </div>
 
 <style>
-	.page-content {
-		max-width: 800px;
-		margin: 0 auto;
-		padding: 40px 24px 80px;
-		font-family: 'Georgia', 'Times New Roman', serif;
+	.page {
+		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
+		background: #f8f8f8;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	}
 
 	/* Header */
 	.page-header {
-		text-align: center;
-		margin-bottom: 32px;
+		padding: 28px 32px;
+		background: #fff;
+		border-bottom: 1px solid #eaeaea;
 	}
 
-	.page-header h1 {
-		margin: 0 0 8px 0;
-		font-size: 26px;
-		font-weight: 600;
-		color: #000;
-		letter-spacing: -0.01em;
+	.brand {
+		display: flex;
+		align-items: center;
+		gap: 16px;
+		max-width: 800px;
+		margin: 0 auto;
 	}
 
-	.page-header p {
+	.brand-mark {
+		width: 8px;
+		height: 36px;
+		background: #1a1a1a;
+		border-radius: 2px;
+	}
+
+	.brand-text h1 {
 		margin: 0;
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		font-size: 20px;
+		font-weight: 600;
+		color: #1a1a1a;
+		letter-spacing: -0.02em;
+	}
+
+	.brand-text span {
 		font-size: 13px;
-		color: #666;
-		letter-spacing: 0.02em;
+		color: #888;
+	}
+
+	/* Main */
+	.main-content {
+		flex: 1;
+		max-width: 800px;
+		width: 100%;
+		margin: 0 auto;
+		padding: 32px 24px 60px;
 	}
 
 	/* Nav */
@@ -129,55 +158,55 @@
 	}
 
 	.secondary-nav a {
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 		font-size: 13px;
 		color: #666;
 		text-decoration: none;
+		transition: color 0.15s ease;
 	}
 
 	.secondary-nav a:hover {
-		color: #000;
-		text-decoration: underline;
+		color: #1a1a1a;
 	}
 
 	/* Error */
-	.error-message {
+	.error-card {
 		margin-top: 24px;
-		padding: 14px 18px;
-		background: #fff8f8;
-		border: 1px solid #f0cccc;
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		padding: 16px 20px;
+		background: #fff;
+		border: 1px solid #f0d0d0;
+		border-radius: 8px;
 		font-size: 14px;
-		color: #900;
+		color: #a00;
 	}
 
-	.error-message strong {
+	.error-card strong {
 		font-weight: 600;
 	}
 
 	/* Results */
 	.results-section {
-		margin-top: 32px;
+		margin-top: 36px;
 	}
 
-	.results-meta {
+	.results-header {
 		display: flex;
 		justify-content: space-between;
-		padding-bottom: 12px;
+		align-items: baseline;
+		padding-bottom: 16px;
 		margin-bottom: 20px;
-		border-bottom: 1px solid #ddd;
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		border-bottom: 1px solid #e0e0e0;
 	}
 
-	.results-count {
-		font-size: 14px;
+	.results-header h2 {
+		margin: 0;
+		font-size: 18px;
 		font-weight: 600;
-		color: #000;
+		color: #1a1a1a;
 	}
 
-	.results-time {
+	.results-header .meta {
 		font-size: 12px;
-		color: #888;
+		color: #999;
 	}
 
 	.results-list {
@@ -186,56 +215,84 @@
 		gap: 16px;
 	}
 
-	.no-results {
-		padding: 40px 0;
+	.empty-state {
+		padding: 48px 0;
 		text-align: center;
 		font-size: 15px;
 		color: #666;
 	}
 
 	/* Welcome */
-	.welcome-section {
-		margin-top: 48px;
+	.welcome-card {
+		margin-top: 40px;
 		padding: 32px;
-		background: #fafafa;
-		border: 1px solid #e0e0e0;
+		background: #fff;
+		border-radius: 8px;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 	}
 
-	.welcome-section h2 {
-		margin: 0 0 12px 0;
+	.welcome-card h2 {
+		margin: 0 0 10px 0;
 		font-size: 18px;
 		font-weight: 600;
-		color: #000;
+		color: #1a1a1a;
 	}
 
-	.welcome-section p {
-		margin: 0 0 20px 0;
-		font-size: 14px;
+	.welcome-card p {
+		margin: 0 0 24px 0;
+		font-size: 15px;
 		line-height: 1.6;
-		color: #444;
+		color: #555;
 	}
 
-	.topic-list {
-		list-style: none;
-		margin: 0;
-		padding: 0;
+	.topics {
+		padding-top: 20px;
+		border-top: 1px solid #f0f0f0;
+	}
+
+	.topics-label {
+		display: block;
+		margin-bottom: 12px;
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: #999;
+	}
+
+	.topic-buttons {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 10px;
+		gap: 8px;
 	}
 
-	.topic-list button {
-		padding: 8px 16px;
-		background: #fff;
-		border: 1px solid #ccc;
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	.topic-buttons button {
+		padding: 9px 16px;
+		background: #fafafa;
+		border: 1px solid #e0e0e0;
+		border-radius: 6px;
 		font-size: 13px;
-		color: #333;
+		color: #444;
 		cursor: pointer;
+		transition: all 0.15s ease;
 	}
 
-	.topic-list button:hover {
-		background: #f0f0f0;
-		border-color: #000;
+	.topic-buttons button:hover {
+		background: #fff;
+		border-color: #1a1a1a;
+		color: #1a1a1a;
+	}
+
+	/* Footer */
+	.page-footer {
+		padding: 20px 32px;
+		background: #fff;
+		border-top: 1px solid #eaeaea;
+		text-align: center;
+	}
+
+	.page-footer span {
+		font-size: 12px;
+		color: #999;
 	}
 </style>

@@ -71,65 +71,78 @@
 
 <div class="query-panel">
 	<header class="panel-header">
-		<h1>Dataset Query</h1>
+		<div class="header-brand">
+			<div class="brand-mark"></div>
+			<div class="brand-text">
+				<h1>Dataset Query</h1>
+				<span>UK Centre for Ecology and Hydrology</span>
+			</div>
+		</div>
 		{#if messages.length > 0}
-			<button class="btn-text" on:click={clearConversation}>Clear</button>
+			<button class="btn-secondary" on:click={clearConversation}>New Query</button>
 		{/if}
 	</header>
 
 	<main class="content-area">
 		{#if messages.length === 0}
 			<div class="intro">
-				<h2>Query Environmental Datasets</h2>
+				<h2>Search Environmental Research Data</h2>
 				<p>
-					Enter a natural language query to search across research datasets 
-					from the UK Centre for Ecology and Hydrology catalogue.
+					Enter a natural language query to search across curated datasets 
+					from the UK's leading environmental research institution.
 				</p>
-				<div class="example-queries">
-					<span class="label">Example queries:</span>
-					<button on:click={() => setQuery('What land cover datasets are available?')}>
-						Land cover datasets
-					</button>
-					<button on:click={() => setQuery('Climate monitoring data for UK')}>
-						Climate monitoring
-					</button>
-					<button on:click={() => setQuery('Biodiversity survey data')}>
-						Biodiversity surveys
-					</button>
+				<div class="suggestions">
+					<span class="suggestions-label">Suggested queries</span>
+					<div class="suggestion-buttons">
+						<button on:click={() => setQuery('What land cover datasets are available?')}>
+							Land cover datasets
+						</button>
+						<button on:click={() => setQuery('Climate monitoring data for UK')}>
+							Climate monitoring
+						</button>
+						<button on:click={() => setQuery('Biodiversity survey data')}>
+							Biodiversity surveys
+						</button>
+					</div>
 				</div>
 			</div>
 		{:else}
 			<div class="conversation">
 				{#each messages as message}
-					<div class="turn {message.role}">
-						<div class="turn-label">{message.role === 'user' ? 'Query' : 'Response'}</div>
-						<div class="turn-content">
+					<article class="turn {message.role}">
+						<header class="turn-header">
+							<span class="turn-type">{message.role === 'user' ? 'Query' : 'Response'}</span>
+						</header>
+						<div class="turn-body">
 							{@html message.content.replace(/\n/g, '<br>')}
 						</div>
 						
 						{#if message.sources && message.sources.length > 0}
-							<div class="sources">
-								<div class="sources-header">Related Datasets ({message.sources.length})</div>
+							<aside class="sources-panel">
+								<h4>Related Datasets</h4>
 								<ul>
 									{#each message.sources as source}
 										<li>
 											<a href="/datasets/{source.id}">{source.title}</a>
-											<span class="match">Relevance: {formatScore(source.relevance_score)}</span>
+											<span class="relevance">{formatScore(source.relevance_score)} relevance</span>
 										</li>
 									{/each}
 								</ul>
-							</div>
+							</aside>
 						{/if}
-					</div>
+					</article>
 				{/each}
 
 				{#if isLoading}
-					<div class="turn assistant">
-						<div class="turn-label">Response</div>
-						<div class="turn-content loading">
-							Processing query...
+					<article class="turn assistant">
+						<header class="turn-header">
+							<span class="turn-type">Response</span>
+						</header>
+						<div class="turn-body loading">
+							<span class="loading-text">Processing your query</span>
+							<span class="loading-dots"><span></span><span></span><span></span></span>
 						</div>
-					</div>
+					</article>
 				{/if}
 			</div>
 		{/if}
@@ -140,21 +153,21 @@
 	{/if}
 
 	<footer class="input-area">
-		<label for="query-input" class="sr-only">Enter query</label>
-		<textarea
-			id="query-input"
-			bind:value={inputMessage}
-			on:keydown={handleKeydown}
-			placeholder="Enter your query..."
-			disabled={isLoading}
-			rows="2"
-		></textarea>
+		<div class="input-wrapper">
+			<textarea
+				bind:value={inputMessage}
+				on:keydown={handleKeydown}
+				placeholder="Enter your query..."
+				disabled={isLoading}
+				rows="2"
+			></textarea>
+		</div>
 		<button 
-			class="btn-submit" 
+			class="btn-primary" 
 			on:click={handleSend} 
 			disabled={isLoading || !inputMessage.trim()}
 		>
-			{isLoading ? 'Processing...' : 'Submit Query'}
+			{isLoading ? 'Processing...' : 'Submit'}
 		</button>
 	</footer>
 </div>
@@ -163,11 +176,13 @@
 	.query-panel {
 		display: flex;
 		flex-direction: column;
-		height: 600px;
-		max-height: 80vh;
-		background: #fff;
-		border: 1px solid #d0d0d0;
-		font-family: 'Georgia', 'Times New Roman', serif;
+		height: 620px;
+		max-height: 82vh;
+		background: #ffffff;
+		border-radius: 8px;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
+		overflow: hidden;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	}
 
 	/* Header */
@@ -175,258 +190,312 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 14px 20px;
-		border-bottom: 1px solid #d0d0d0;
+		padding: 18px 24px;
 		background: #fafafa;
+		border-bottom: 1px solid #eaeaea;
 	}
 
-	.panel-header h1 {
+	.header-brand {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+	}
+
+	.brand-mark {
+		width: 10px;
+		height: 32px;
+		background: #1a1a1a;
+		border-radius: 2px;
+	}
+
+	.brand-text h1 {
 		margin: 0;
-		font-size: 16px;
+		font-size: 17px;
 		font-weight: 600;
-		color: #000;
-		letter-spacing: -0.01em;
+		color: #1a1a1a;
+		letter-spacing: -0.02em;
 	}
 
-	.btn-text {
-		padding: 4px 10px;
-		background: none;
-		border: 1px solid #999;
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	.brand-text span {
 		font-size: 12px;
-		color: #666;
-		cursor: pointer;
+		color: #888;
+		letter-spacing: 0.01em;
 	}
 
-	.btn-text:hover {
-		background: #f0f0f0;
-		color: #000;
-		border-color: #000;
+	.btn-secondary {
+		padding: 8px 16px;
+		background: #fff;
+		border: 1px solid #d0d0d0;
+		border-radius: 6px;
+		font-size: 13px;
+		font-weight: 500;
+		color: #444;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.btn-secondary:hover {
+		background: #f5f5f5;
+		border-color: #1a1a1a;
+		color: #1a1a1a;
 	}
 
 	/* Content */
 	.content-area {
 		flex: 1;
 		overflow-y: auto;
-		padding: 24px;
+		padding: 32px 28px;
 	}
 
 	/* Intro */
 	.intro {
-		max-width: 520px;
+		max-width: 480px;
 	}
 
 	.intro h2 {
 		margin: 0 0 12px 0;
-		font-size: 20px;
+		font-size: 22px;
 		font-weight: 600;
-		color: #000;
+		color: #1a1a1a;
+		letter-spacing: -0.02em;
 	}
 
 	.intro p {
-		margin: 0 0 24px 0;
-		font-size: 14px;
-		line-height: 1.7;
-		color: #444;
+		margin: 0 0 28px 0;
+		font-size: 15px;
+		line-height: 1.65;
+		color: #555;
 	}
 
-	.example-queries {
+	.suggestions {
+		padding-top: 20px;
+		border-top: 1px solid #eee;
+	}
+
+	.suggestions-label {
+		display: block;
+		margin-bottom: 12px;
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: #999;
+	}
+
+	.suggestion-buttons {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px;
-		align-items: center;
 	}
 
-	.example-queries .label {
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-		font-size: 11px;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: #888;
-		margin-right: 4px;
-	}
-
-	.example-queries button {
-		padding: 6px 12px;
+	.suggestion-buttons button {
+		padding: 9px 16px;
 		background: #fff;
-		border: 1px solid #ccc;
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-		font-size: 12px;
-		color: #333;
+		border: 1px solid #ddd;
+		border-radius: 6px;
+		font-size: 13px;
+		color: #444;
 		cursor: pointer;
+		transition: all 0.15s ease;
 	}
 
-	.example-queries button:hover {
-		background: #f5f5f5;
-		border-color: #000;
+	.suggestion-buttons button:hover {
+		background: #fafafa;
+		border-color: #1a1a1a;
+		color: #1a1a1a;
 	}
 
 	/* Conversation */
 	.conversation {
 		display: flex;
 		flex-direction: column;
-		gap: 24px;
+		gap: 28px;
 	}
 
 	.turn {
-		padding-bottom: 20px;
-		border-bottom: 1px solid #e5e5e5;
+		padding-bottom: 24px;
+		border-bottom: 1px solid #f0f0f0;
 	}
 
 	.turn:last-child {
 		border-bottom: none;
+		padding-bottom: 0;
 	}
 
-	.turn-label {
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	.turn-header {
+		margin-bottom: 10px;
+	}
+
+	.turn-type {
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: #aaa;
+	}
+
+	.turn.user .turn-type {
+		color: #1a1a1a;
+	}
+
+	.turn-body {
+		font-size: 15px;
+		line-height: 1.7;
+		color: #333;
+	}
+
+	.turn.user .turn-body {
+		color: #1a1a1a;
+		font-weight: 500;
+	}
+
+	.turn-body.loading {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		color: #999;
+	}
+
+	.loading-text {
+		font-style: italic;
+	}
+
+	.loading-dots {
+		display: flex;
+		gap: 3px;
+	}
+
+	.loading-dots span {
+		width: 4px;
+		height: 4px;
+		background: #999;
+		border-radius: 50%;
+		animation: dot-pulse 1.2s infinite;
+	}
+
+	.loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+	.loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+	@keyframes dot-pulse {
+		0%, 100% { opacity: 0.3; }
+		50% { opacity: 1; }
+	}
+
+	/* Sources */
+	.sources-panel {
+		margin-top: 20px;
+		padding: 18px 20px;
+		background: #fafafa;
+		border-radius: 6px;
+	}
+
+	.sources-panel h4 {
+		margin: 0 0 14px 0;
 		font-size: 11px;
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
 		color: #888;
-		margin-bottom: 8px;
 	}
 
-	.turn.user .turn-label {
-		color: #000;
-	}
-
-	.turn-content {
-		font-size: 15px;
-		line-height: 1.7;
-		color: #1a1a1a;
-	}
-
-	.turn.user .turn-content {
-		font-style: italic;
-		color: #333;
-	}
-
-	.turn-content.loading {
-		color: #888;
-		font-style: italic;
-	}
-
-	/* Sources */
-	.sources {
-		margin-top: 16px;
-		padding: 14px 16px;
-		background: #f8f8f8;
-		border: 1px solid #e0e0e0;
-	}
-
-	.sources-header {
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-		font-size: 11px;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: #666;
-		margin-bottom: 10px;
-	}
-
-	.sources ul {
+	.sources-panel ul {
 		list-style: none;
 		margin: 0;
 		padding: 0;
 	}
 
-	.sources li {
+	.sources-panel li {
 		display: flex;
 		justify-content: space-between;
 		align-items: baseline;
-		padding: 8px 0;
-		border-bottom: 1px solid #e8e8e8;
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		padding: 10px 0;
+		border-bottom: 1px solid #eee;
 	}
 
-	.sources li:last-child {
+	.sources-panel li:last-child {
 		border-bottom: none;
 		padding-bottom: 0;
 	}
 
-	.sources a {
-		font-size: 13px;
-		color: #000;
+	.sources-panel a {
+		font-size: 14px;
+		font-weight: 500;
+		color: #1a1a1a;
 		text-decoration: none;
+		transition: color 0.15s ease;
 	}
 
-	.sources a:hover {
-		text-decoration: underline;
+	.sources-panel a:hover {
+		color: #555;
 	}
 
-	.sources .match {
-		font-size: 11px;
-		color: #888;
+	.sources-panel .relevance {
+		font-size: 12px;
+		color: #999;
 	}
 
 	/* Error */
 	.error-bar {
-		padding: 10px 20px;
-		background: #fff0f0;
-		border-top: 1px solid #ffcccc;
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		padding: 12px 24px;
+		background: #fff8f8;
+		border-top: 1px solid #ffe0e0;
 		font-size: 13px;
-		color: #c00;
+		color: #b00;
 	}
 
 	/* Input */
 	.input-area {
 		display: flex;
 		gap: 12px;
-		padding: 16px 20px;
+		padding: 18px 24px;
 		background: #fafafa;
-		border-top: 1px solid #d0d0d0;
+		border-top: 1px solid #eaeaea;
 	}
 
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		border: 0;
-	}
-
-	.input-area textarea {
+	.input-wrapper {
 		flex: 1;
-		padding: 10px 12px;
+	}
+
+	.input-wrapper textarea {
+		width: 100%;
+		padding: 12px 14px;
 		background: #fff;
-		border: 1px solid #ccc;
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+		border: 1px solid #d0d0d0;
+		border-radius: 6px;
+		font-family: inherit;
 		font-size: 14px;
-		line-height: 1.4;
+		line-height: 1.5;
 		resize: none;
+		transition: border-color 0.15s ease;
 	}
 
-	.input-area textarea:focus {
+	.input-wrapper textarea:focus {
 		outline: none;
-		border-color: #000;
+		border-color: #1a1a1a;
 	}
 
-	.input-area textarea::placeholder {
-		color: #999;
+	.input-wrapper textarea::placeholder {
+		color: #aaa;
 	}
 
-	.btn-submit {
-		padding: 10px 20px;
-		background: #000;
+	.btn-primary {
+		padding: 12px 24px;
+		background: #1a1a1a;
 		border: none;
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-		font-size: 13px;
+		border-radius: 6px;
+		font-size: 14px;
 		font-weight: 500;
 		color: #fff;
 		cursor: pointer;
-		white-space: nowrap;
+		transition: all 0.15s ease;
+		align-self: flex-end;
 	}
 
-	.btn-submit:hover:not(:disabled) {
+	.btn-primary:hover:not(:disabled) {
 		background: #333;
 	}
 
-	.btn-submit:disabled {
+	.btn-primary:disabled {
 		background: #ccc;
 		cursor: not-allowed;
 	}

@@ -21,27 +21,27 @@
 		min-height: 100vh;
 		background: #f5f5f5;
 		padding: 48px 24px;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	}
 	
 	.container {
-		max-width: 700px;
+		max-width: 720px;
 		margin: 0 auto;
 	}
 	
 	.back-nav {
-		max-width: 700px;
-		margin: 20px auto 0;
+		max-width: 720px;
+		margin: 24px auto 0;
 	}
 	
 	.back-nav a {
-		font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 		font-size: 13px;
-		color: #666;
+		color: #888;
 		text-decoration: none;
+		transition: color 0.15s ease;
 	}
 	
 	.back-nav a:hover {
-		color: #000;
-		text-decoration: underline;
+		color: #1a1a1a;
 	}
 </style>
