@@ -79,32 +79,35 @@ class ZipExtractor:
         extract_dir: str = None,
         timeout: int = 300,
         max_size_mb: int = 500,
-        overwrite: bool = False
+        overwrite: bool = False,
+        max_nested_depth: int = 3
     ):
         """
         Initialize ZIP extractor.
-        
+
         Args:
             extract_dir: Directory for extracted files
             timeout: Download timeout in seconds
             max_size_mb: Maximum archive size to download (MB)
             overwrite: Whether to overwrite existing extractions
+            max_nested_depth: Maximum depth for recursive nested ZIP extraction
         """
         self.extract_dir = Path(extract_dir or self.DEFAULT_EXTRACT_DIR)
         self.timeout = timeout
         self.max_size_bytes = max_size_mb * 1024 * 1024
         self.overwrite = overwrite
-        
+        self.max_nested_depth = max_nested_depth
+
         # Create extraction directory
         self.extract_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Session for HTTP requests
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'DatasetSearchBot/1.0 (University of Manchester RSE)'
         })
-        
-        logger.info(f"ZipExtractor initialized: dir={self.extract_dir}, max_size={max_size_mb}MB")
+
+        logger.info(f"ZipExtractor initialized: dir={self.extract_dir}, max_size={max_size_mb}MB, max_nested_depth={max_nested_depth}")
     
     def _get_extraction_path(self, dataset_id: str) -> Path:
         """Get the extraction path for a dataset."""
@@ -161,56 +164,59 @@ class ZipExtractor:
         self,
         content: bytes,
         dataset_id: str,
-        file_filter: Optional[callable] = None
+        file_filter: Optional[callable] = None,
+        current_depth: int = 0
     ) -> List[ExtractedFile]:
         """
-        Extract ZIP content from bytes.
-        
+        Extract ZIP content from bytes with recursive nested ZIP support.
+
         Args:
             content: ZIP file content as bytes
             dataset_id: Dataset ID for directory naming
             file_filter: Optional function to filter files (returns True to include)
-            
+            current_depth: Current recursion depth (internal use)
+
         Returns:
             List of ExtractedFile objects
-            
+
         Raises:
             ZipExtractionError: If extraction fails
         """
         extraction_path = self._get_extraction_path(dataset_id)
-        
+
         # Check if already extracted
         if not self.overwrite and self._check_file_exists(dataset_id):
             logger.info(f"Already extracted, skipping: {dataset_id}")
             return self._get_existing_files(extraction_path)
-        
+
         # Create extraction directory
         extraction_path.mkdir(parents=True, exist_ok=True)
-        
+
         try:
             extracted_files = []
-            
+
             with zipfile.ZipFile(io.BytesIO(content)) as zf:
                 for info in zf.infolist():
                     # Skip directories
                     if info.is_dir():
                         continue
-                    
+
                     # Apply file filter if provided
                     if file_filter and not file_filter(info.filename):
                         continue
-                    
+
                     # Extract file
                     output_path = extraction_path / info.filename
                     output_path.parent.mkdir(parents=True, exist_ok=True)
-                    
+
                     with zf.open(info) as source:
+                        file_content = source.read()
                         with open(output_path, 'wb') as target:
-                            target.write(source.read())
-                    
+                            target.write(file_content)
+
                     # Get file extension
                     ext = Path(info.filename).suffix.lower().lstrip('.')
-                    
+
                     extracted_files.append(ExtractedFile(
                         filename=info.filename,
                         file_path=str(output_path),
@@ -218,12 +224,35 @@ class ZipExtractor:
                         file_format=ext,
                         extracted_at=datetime.utcnow()
                     ))
-                    
+
                     logger.debug(f"Extracted: {info.filename} ({info.file_size} bytes)")
-            
-            logger.info(f"Extracted {len(extracted_files)} files to {extraction_path}")
+
+                    # ENHANCEMENT: Recursively extract nested ZIP files
+                    if ext == 'zip' and current_depth < self.max_nested_depth:
+                        logger.info(f"Found nested ZIP at depth {current_depth}: {info.filename}")
+                        try:
+                            # Create nested dataset ID
+                            nested_id = f"{dataset_id}_nested_{Path(info.filename).stem}"
+
+                            # Recursively extract
+                            nested_files = self.extract_from_bytes(
+                                content=file_content,
+                                dataset_id=nested_id,
+                                file_filter=file_filter,
+                                current_depth=current_depth + 1
+                            )
+
+                            # Add nested files to result
+                            extracted_files.extend(nested_files)
+                            logger.info(f"Extracted {len(nested_files)} files from nested ZIP: {info.filename}")
+
+                        except Exception as e:
+                            logger.warning(f"Failed to extract nested ZIP {info.filename}: {str(e)}")
+                            # Continue with other files
+
+            logger.info(f"Extracted {len(extracted_files)} files total to {extraction_path}")
             return extracted_files
-            
+
         except zipfile.BadZipFile:
             raise ZipExtractionError("Invalid ZIP file format")
         except Exception as e:

@@ -27,9 +27,16 @@ from domain.repositories.dataset_repository import (
     DatasetAlreadyExistsError
 )
 from domain.entities.dataset import Dataset
-from domain.entities.metadata import Metadata, BoundingBox
+from domain.entities.metadata import Metadata, BoundingBox, MetadataRelationship
+from domain.entities.data_file import DataFile, SupportingDocument
 
-from .models import DatasetModel, MetadataModel
+from .models import (
+    DatasetModel,
+    MetadataModel,
+    DataFileModel,
+    SupportingDocumentModel,
+    MetadataRelationshipModel
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -67,7 +74,15 @@ class SQLiteDatasetRepository(IDatasetRepository):
         self.session = session
         logger.debug("SQLiteDatasetRepository initialized")
 
-    def save(self, dataset: Dataset, metadata: Metadata) -> str:
+    def save(
+        self,
+        dataset: Dataset,
+        metadata: Metadata,
+        data_files: Optional[List[DataFile]] = None,
+        supporting_documents: Optional[List[SupportingDocument]] = None,
+        raw_document: Optional[str] = None,
+        document_format: Optional[str] = None
+    ) -> str:
         """
         Save a dataset and its metadata to the database.
 
@@ -77,6 +92,8 @@ class SQLiteDatasetRepository(IDatasetRepository):
         Args:
             dataset: Dataset entity to persist
             metadata: Metadata entity associated with the dataset
+            raw_document: Complete original document (JSON/XML) for data provenance
+            document_format: Format of raw document ('json', 'xml', 'jsonld', 'rdf')
 
         Returns:
             str: The UUID of the saved dataset
@@ -88,7 +105,7 @@ class SQLiteDatasetRepository(IDatasetRepository):
             >>> repo = SQLiteDatasetRepository(session)
             >>> dataset = Dataset(title="My Dataset")
             >>> metadata = Metadata(title="My Dataset", abstract="...")
-            >>> dataset_id = repo.save(dataset, metadata)
+            >>> dataset_id = repo.save(dataset, metadata, raw_document='...', document_format='json')
         """
         try:
             dataset_id = str(dataset.id)
@@ -103,19 +120,92 @@ class SQLiteDatasetRepository(IDatasetRepository):
 
                 # Update metadata
                 if existing.dataset_metadata:
-                    self._update_metadata_model(existing.dataset_metadata, metadata)
+                    self._update_metadata_model(
+                        existing.dataset_metadata,
+                        metadata,
+                        raw_document,
+                        document_format
+                    )
                 else:
-                    metadata_model = self._create_metadata_model(metadata, dataset_id)
+                    metadata_model = self._create_metadata_model(
+                        metadata,
+                        dataset_id,
+                        raw_document,
+                        document_format
+                    )
                     self.session.add(metadata_model)
 
             else:
                 # Create new dataset
                 logger.info(f"Creating new dataset: {dataset_id}")
                 dataset_model = self._create_dataset_model(dataset)
-                metadata_model = self._create_metadata_model(metadata, dataset_id)
+                metadata_model = self._create_metadata_model(
+                    metadata,
+                    dataset_id,
+                    raw_document,
+                    document_format
+                )
 
                 self.session.add(dataset_model)
                 self.session.add(metadata_model)
+
+            # Handle Data Files
+            if data_files:
+                # Clear existing files if updating
+                if existing:
+                     self.session.query(DataFileModel).filter_by(dataset_id=dataset_id).delete()
+                
+                for df in data_files:
+                    df_model = DataFileModel(
+                        id=str(df.id),
+                        dataset_id=dataset_id,
+                        filename=df.filename,
+                        file_path=df.file_path,
+                        file_size=df.file_size,
+                        file_format=df.file_format,
+                        checksum=df.checksum,
+                        description=df.description,
+                        downloaded_at=df.downloaded_at,
+                        created_at=df.created_at
+                    )
+                    self.session.add(df_model)
+            
+            # Handle Supporting Documents
+            if supporting_documents:
+                # Clear existing documents if updating
+                if existing:
+                    self.session.query(SupportingDocumentModel).filter_by(dataset_id=dataset_id).delete()
+                
+                for doc in supporting_documents:
+                    doc_model = SupportingDocumentModel(
+                        id=str(doc.id),
+                        dataset_id=dataset_id,
+                        title=doc.title,
+                        document_type=doc.document_type,
+                        filename=doc.filename,
+                        file_path=doc.file_path,
+                        file_size=doc.file_size,
+                        content_text=doc.content_text,
+                        is_processed=1 if doc.is_processed else 0,
+                        downloaded_at=doc.downloaded_at,
+                        created_at=doc.created_at
+                    )
+                    self.session.add(doc_model)
+
+            # Handle Metadata Relationships (JSON-specific)
+            if document_format in ("json", "jsonld"):
+                if existing:
+                    self.session.query(MetadataRelationshipModel).filter_by(dataset_id=dataset_id).delete()
+
+                for rel in metadata.relationships:
+                    rel_model = MetadataRelationshipModel(
+                        dataset_id=dataset_id,
+                        relation=rel.relation,
+                        target=rel.target,
+                        target_id=rel.target_id or None,
+                        target_url=rel.target_url or None
+                    )
+                    self.session.add(rel_model)
 
             # Commit transaction
             self.session.commit()
@@ -161,7 +251,10 @@ class SQLiteDatasetRepository(IDatasetRepository):
                 return None
 
             dataset = self._to_dataset_entity(dataset_model)
-            metadata = self._to_metadata_entity(dataset_model.dataset_metadata)
+            metadata = self._to_metadata_entity(
+                dataset_model.dataset_metadata,
+                dataset_model.metadata_relationships
+            )
 
             logger.debug(f"Retrieved dataset: {dataset_id}")
             return (dataset, metadata)
@@ -216,7 +309,10 @@ class SQLiteDatasetRepository(IDatasetRepository):
             for dataset_model in dataset_models:
                 if dataset_model.dataset_metadata:
                     dataset = self._to_dataset_entity(dataset_model)
-                    metadata = self._to_metadata_entity(dataset_model.dataset_metadata)
+                    metadata = self._to_metadata_entity(
+                        dataset_model.dataset_metadata,
+                        dataset_model.metadata_relationships
+                    )
                     results.append((dataset, metadata))
 
             logger.debug(f"Retrieved {len(results)} datasets")
@@ -245,7 +341,10 @@ class SQLiteDatasetRepository(IDatasetRepository):
             for dataset_model in dataset_models:
                 if dataset_model.dataset_metadata:
                     dataset = self._to_dataset_entity(dataset_model)
-                    metadata = self._to_metadata_entity(dataset_model.dataset_metadata)
+                    metadata = self._to_metadata_entity(
+                        dataset_model.dataset_metadata,
+                        dataset_model.metadata_relationships
+                    )
                     results.append((dataset, metadata))
 
             logger.debug(f"Found {len(results)} datasets matching '{title_query}'")
@@ -315,8 +414,16 @@ class SQLiteDatasetRepository(IDatasetRepository):
         model.metadata_url = dataset.metadata_url
         model.last_updated = dataset.last_updated
 
-    def _create_metadata_model(self, metadata: Metadata, dataset_id: str) -> MetadataModel:
+    def _create_metadata_model(
+        self,
+        metadata: Metadata,
+        dataset_id: str,
+        raw_document: Optional[str] = None,
+        document_format: Optional[str] = None
+    ) -> MetadataModel:
         """Create a MetadataModel from a Metadata entity."""
+        import hashlib
+
         model = MetadataModel(
             dataset_id=dataset_id,
             title=metadata.title,
@@ -327,7 +434,10 @@ class SQLiteDatasetRepository(IDatasetRepository):
             dataset_language=metadata.dataset_language,
             topic_category=metadata.topic_category,
             temporal_extent_start=metadata.temporal_extent_start,
-            temporal_extent_end=metadata.temporal_extent_end
+            temporal_extent_end=metadata.temporal_extent_end,
+            access_type=metadata.access_type,
+            download_url=metadata.download_url,
+            landing_page_url=metadata.landing_page_url
         )
 
         # Set keywords using helper method
@@ -343,10 +453,36 @@ class SQLiteDatasetRepository(IDatasetRepository):
             }
             model.set_bounding_box(bbox_dict)
 
+        # Store raw document if provided (TASK REQUIREMENT)
+        if raw_document:
+            # Calculate SHA-256 checksum for integrity verification
+            checksum = hashlib.sha256(raw_document.encode('utf-8')).hexdigest()
+            model.document_checksum = checksum
+            model.document_format = document_format or 'unknown'
+
+            # Store in appropriate field based on format
+            if document_format == 'json' or document_format == 'jsonld':
+                model.raw_document_json = raw_document
+            elif document_format == 'xml' or document_format == 'rdf':
+                model.raw_document_xml = raw_document
+            else:
+                # Default to JSON field for unknown formats
+                model.raw_document_json = raw_document
+
+            logger.debug(f"Stored raw document ({len(raw_document)} chars, format={document_format}, checksum={checksum[:16]}...)")
+
         return model
 
-    def _update_metadata_model(self, model: MetadataModel, metadata: Metadata):
+    def _update_metadata_model(
+        self,
+        model: MetadataModel,
+        metadata: Metadata,
+        raw_document: Optional[str] = None,
+        document_format: Optional[str] = None
+    ):
         """Update a MetadataModel with data from a Metadata entity."""
+        import hashlib
+
         model.title = metadata.title
         model.abstract = metadata.abstract
         model.contact_organization = metadata.contact_organization
@@ -356,6 +492,9 @@ class SQLiteDatasetRepository(IDatasetRepository):
         model.topic_category = metadata.topic_category
         model.temporal_extent_start = metadata.temporal_extent_start
         model.temporal_extent_end = metadata.temporal_extent_end
+        model.access_type = metadata.access_type
+        model.download_url = metadata.download_url
+        model.landing_page_url = metadata.landing_page_url
 
         # Update keywords
         model.set_keywords(metadata.keywords)
@@ -372,6 +511,21 @@ class SQLiteDatasetRepository(IDatasetRepository):
         else:
             model.set_bounding_box(None)
 
+        # Update raw document if provided (TASK REQUIREMENT)
+        if raw_document:
+            checksum = hashlib.sha256(raw_document.encode('utf-8')).hexdigest()
+            model.document_checksum = checksum
+            model.document_format = document_format or 'unknown'
+
+            if document_format == 'json' or document_format == 'jsonld':
+                model.raw_document_json = raw_document
+            elif document_format == 'xml' or document_format == 'rdf':
+                model.raw_document_xml = raw_document
+            else:
+                model.raw_document_json = raw_document
+
+            logger.debug(f"Updated raw document ({len(raw_document)} chars, format={document_format})")
+
     def _to_dataset_entity(self, model: DatasetModel) -> Dataset:
         """Convert a DatasetModel to a Dataset entity."""
         return Dataset(
@@ -383,7 +537,11 @@ class SQLiteDatasetRepository(IDatasetRepository):
             created_at=model.created_at
         )
 
-    def _to_metadata_entity(self, model: MetadataModel) -> Metadata:
+    def _to_metadata_entity(
+        self,
+        model: MetadataModel,
+        relationship_models: Optional[List[MetadataRelationshipModel]] = None
+    ) -> Metadata:
         """Convert a MetadataModel to a Metadata entity."""
         # Get bounding box
         bounding_box = None
@@ -399,6 +557,18 @@ class SQLiteDatasetRepository(IDatasetRepository):
             except (KeyError, ValueError) as e:
                 logger.warning(f"Invalid bounding box data: {str(e)}")
 
+        relationships: List[MetadataRelationship] = []
+        if relationship_models:
+            for rel in relationship_models:
+                relationships.append(
+                    MetadataRelationship(
+                        relation=rel.relation,
+                        target=rel.target,
+                        target_id=rel.target_id or "",
+                        target_url=rel.target_url or ""
+                    )
+                )
+
         # Create metadata entity
         return Metadata(
             title=model.title,
@@ -411,7 +581,11 @@ class SQLiteDatasetRepository(IDatasetRepository):
             contact_email=model.contact_email or "",
             metadata_date=model.metadata_date,
             dataset_language=model.dataset_language or "eng",
-            topic_category=model.topic_category or ""
+            topic_category=model.topic_category or "",
+            download_url=model.download_url or "",
+            landing_page_url=model.landing_page_url or "",
+            access_type=model.access_type or "download",
+            relationships=relationships
         )
 
     def __repr__(self):

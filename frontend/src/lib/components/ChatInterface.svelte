@@ -1,502 +1,255 @@
 <script lang="ts">
-	import { sendChatMessage } from '$lib/api';
-	import type { ChatMessage, ChatSource } from '$lib/types';
+    import { sendChatMessage } from '$lib/api';
+    import type { ChatMessage } from '$lib/types';
+    import { Send, User, RotateCcw, ExternalLink } from 'lucide-svelte';
 
-	let messages: ChatMessage[] = [];
-	let inputMessage = '';
-	let isLoading = false;
-	let error = '';
-	let conversationId: string | null = null;
+    let messages: ChatMessage[] = [];
+    let inputMessage = '';
+    let isLoading = false;
+    let error = '';
+    let conversationId: string | null = null;
+    let textarea: HTMLTextAreaElement;
+    let messagesContainer: HTMLElement;
 
-	function generateId(): string {
-		return Math.random().toString(36).substring(2, 15);
-	}
+    function generateId(): string {
+        return Math.random().toString(36).substring(2, 15);
+    }
 
-	async function handleSend() {
-		if (!inputMessage.trim() || isLoading) return;
+    function scrollToBottom() {
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    }
 
-		const userMessage = inputMessage.trim();
-		inputMessage = '';
-		error = '';
+    async function handleSend() {
+        if (!inputMessage.trim() || isLoading) return;
 
-		const userMsg: ChatMessage = {
-			id: generateId(),
-			role: 'user',
-			content: userMessage,
-			timestamp: new Date()
-		};
-		messages = [...messages, userMsg];
-		isLoading = true;
+        const userMessage = inputMessage.trim();
+        inputMessage = '';
+        error = '';
+        
+        if (textarea) textarea.style.height = 'auto';
 
-		try {
-			const response = await sendChatMessage(userMessage, conversationId || undefined);
-			conversationId = response.conversation_id;
+        const userMsg: ChatMessage = {
+            id: generateId(),
+            role: 'user',
+            content: userMessage,
+            timestamp: new Date()
+        };
+        messages = [...messages, userMsg];
+        isLoading = true;
+        
+        setTimeout(scrollToBottom, 50);
 
-			const assistantMsg: ChatMessage = {
-				id: generateId(),
-				role: 'assistant',
-				content: response.answer,
-				timestamp: new Date(),
-				sources: response.sources
-			};
-			messages = [...messages, assistantMsg];
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Request failed';
-		} finally {
-			isLoading = false;
-		}
-	}
+        try {
+            const response = await sendChatMessage(userMessage, conversationId || undefined);
+            conversationId = response.conversation_id;
 
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && !event.shiftKey) {
-			event.preventDefault();
-			handleSend();
-		}
-	}
+            const assistantMsg: ChatMessage = {
+                id: generateId(),
+                role: 'assistant',
+                content: response.answer,
+                timestamp: new Date(),
+                sources: response.sources
+            };
+            messages = [...messages, assistantMsg];
+            setTimeout(scrollToBottom, 50);
+        } catch (err) {
+            error = err instanceof Error ? err.message : 'Request failed';
+        } finally {
+            isLoading = false;
+        }
+    }
 
-	function clearConversation() {
-		messages = [];
-		conversationId = null;
-		error = '';
-	}
+    function handleKeydown(event: KeyboardEvent) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            handleSend();
+        }
+    }
+    
+    function autoResize() {
+        if (textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        }
+    }
 
-	function formatScore(score: number): string {
-		return `${Math.round(score * 100)}%`;
-	}
+    function clearConversation() {
+        messages = [];
+        conversationId = null;
+        error = '';
+    }
 
-	function setQuery(text: string) {
-		inputMessage = text;
-	}
+    function setQuery(text: string) {
+        inputMessage = text;
+        if (textarea) textarea.focus();
+    }
+
+    // Suggested queries
+    const suggestions = [
+        'What land cover datasets are available?',
+        'Find hydrological monitoring data',
+        'Datasets about butterfly populations',
+        'Climate data for Scotland'
+    ];
 </script>
 
-<div class="query-panel">
-	<header class="panel-header">
-		<div class="header-brand">
-			<div class="brand-mark"></div>
-			<div class="brand-text">
-				<h1>Dataset Query</h1>
-				<span>UK Centre for Ecology and Hydrology</span>
-			</div>
-		</div>
-		{#if messages.length > 0}
-			<button class="btn-secondary" on:click={clearConversation}>New Query</button>
-		{/if}
-	</header>
+<div class="flex flex-col h-[600px] max-h-[80vh] bg-white rounded border border-border overflow-hidden">
+    <!-- Header -->
+    <header class="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
+        <div>
+            <h2 class="text-sm font-semibold text-foreground">AI Assistant</h2>
+            <p class="text-xs text-muted-foreground">Semantic search with retrieval-augmented generation</p>
+        </div>
+        {#if messages.length > 0}
+            <button 
+                class="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+                on:click={clearConversation}
+                title="New conversation"
+            >
+                <RotateCcw class="w-4 h-4" />
+            </button>
+        {/if}
+    </header>
 
-	<main class="content-area">
-		{#if messages.length === 0}
-			<div class="intro">
-				<h2>Search Environmental Research Data</h2>
-				<p>
-					Enter a natural language query to search across curated datasets 
-					from the UK's leading environmental research institution.
-				</p>
-				<div class="suggestions">
-					<span class="suggestions-label">Suggested queries</span>
-					<div class="suggestion-buttons">
-						<button on:click={() => setQuery('What land cover datasets are available?')}>
-							Land cover datasets
-						</button>
-						<button on:click={() => setQuery('Climate monitoring data for UK')}>
-							Climate monitoring
-						</button>
-						<button on:click={() => setQuery('Biodiversity survey data')}>
-							Biodiversity surveys
-						</button>
-					</div>
-				</div>
-			</div>
-		{:else}
-			<div class="conversation">
-				{#each messages as message}
-					<article class="turn {message.role}">
-						<header class="turn-header">
-							<span class="turn-type">{message.role === 'user' ? 'Query' : 'Response'}</span>
-						</header>
-						<div class="turn-body">
-							{@html message.content.replace(/\n/g, '<br>')}
-						</div>
-						
-						{#if message.sources && message.sources.length > 0}
-							<aside class="sources-panel">
-								<h4>Related Datasets</h4>
-								<ul>
-									{#each message.sources as source}
-										<li>
-											<a href="/datasets/{source.id}">{source.title}</a>
-											<span class="relevance">{formatScore(source.relevance_score)} relevance</span>
-										</li>
-									{/each}
-								</ul>
-							</aside>
-						{/if}
-					</article>
-				{/each}
+    <!-- Messages -->
+    <main 
+        bind:this={messagesContainer}
+        class="flex-1 overflow-y-auto p-5 space-y-5 bg-white"
+    >
+        {#if messages.length === 0}
+            <!-- Empty State -->
+            <div class="h-full flex flex-col items-center justify-center text-center px-6">
+                <h3 class="text-lg font-semibold text-foreground mb-2">
+                    Dataset Discovery Assistant
+                </h3>
+                <p class="text-sm text-muted-foreground max-w-md mb-6">
+                    Ask questions about environmental datasets in natural language. 
+                    The assistant will search across 200+ datasets and provide relevant answers with source citations.
+                </p>
+                
+                <div class="w-full max-w-md space-y-2">
+                    <div class="section-header text-left mb-2">Suggested queries</div>
+                    {#each suggestions as query}
+                        <button 
+                            class="w-full text-left px-4 py-3 text-sm bg-muted/30 border border-border rounded hover:border-primary/30 hover:bg-muted/50 transition-colors"
+                            on:click={() => setQuery(query)}
+                        >
+                            {query}
+                        </button>
+                    {/each}
+                </div>
+            </div>
+        {:else}
+            <!-- Message List -->
+            {#each messages as message}
+                <div class={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                    <!-- Avatar -->
+                    <div class={`
+                        w-7 h-7 rounded flex items-center justify-center shrink-0 text-xs font-medium
+                        ${message.role === 'user' 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'bg-muted text-muted-foreground border border-border'}
+                    `}>
+                        {#if message.role === 'user'}
+                            <User class="w-3.5 h-3.5" />
+                        {:else}
+                            A
+                        {/if}
+                    </div>
 
-				{#if isLoading}
-					<article class="turn assistant">
-						<header class="turn-header">
-							<span class="turn-type">Response</span>
-						</header>
-						<div class="turn-body loading">
-							<span class="loading-text">Processing your query</span>
-							<span class="loading-dots"><span></span><span></span><span></span></span>
-						</div>
-					</article>
-				{/if}
-			</div>
-		{/if}
-	</main>
+                    <!-- Content -->
+                    <div class={`flex flex-col max-w-[85%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
+                        <div class={`
+                            rounded px-4 py-3 text-sm leading-relaxed
+                            ${message.role === 'user' 
+                                ? 'bg-primary text-primary-foreground' 
+                                : 'bg-muted/50 text-foreground border border-border'}
+                        `}>
+                            {@html message.content.replace(/\n/g, '<br>')}
+                        </div>
+                        
+                        <!-- Sources -->
+                        {#if message.sources && message.sources.length > 0}
+                            <div class="mt-2 p-3 bg-muted/30 rounded border border-border w-full">
+                                <div class="section-header mb-2">Referenced Datasets</div>
+                                <ul class="space-y-1.5">
+                                    {#each message.sources as source}
+                                        <li>
+                                            <a 
+                                                href="/datasets/{source.id}" 
+                                                class="flex items-center justify-between p-2 text-sm hover:bg-white rounded transition-colors group"
+                                            >
+                                                <span class="text-foreground group-hover:text-primary truncate mr-2">
+                                                    {source.title}
+                                                </span>
+                                                <div class="flex items-center gap-2 shrink-0">
+                                                    <span class="text-xs text-muted-foreground font-mono">
+                                                        {Math.round(source.relevance_score * 100)}%
+                                                    </span>
+                                                    <ExternalLink class="w-3 h-3 text-muted-foreground" />
+                                                </div>
+                                            </a>
+                                        </li>
+                                    {/each}
+                                </ul>
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+            {/each}
 
-	{#if error}
-		<div class="error-bar">{error}</div>
-	{/if}
+            {#if isLoading}
+                <div class="flex gap-3">
+                    <div class="w-7 h-7 rounded bg-muted border border-border flex items-center justify-center text-xs font-medium text-muted-foreground">
+                        A
+                    </div>
+                    <div class="bg-muted/50 border border-border rounded px-4 py-3 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-pulse"></span>
+                        <span class="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-pulse delay-75"></span>
+                        <span class="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-pulse delay-150"></span>
+                    </div>
+                </div>
+            {/if}
+        {/if}
+    </main>
 
-	<footer class="input-area">
-		<div class="input-wrapper">
-			<textarea
-				bind:value={inputMessage}
-				on:keydown={handleKeydown}
-				placeholder="Enter your query..."
-				disabled={isLoading}
-				rows="2"
-			></textarea>
-		</div>
-		<button 
-			class="btn-primary" 
-			on:click={handleSend} 
-			disabled={isLoading || !inputMessage.trim()}
-		>
-			{isLoading ? 'Processing...' : 'Submit'}
-		</button>
-	</footer>
+    <!-- Input -->
+    <div class="p-4 border-t border-border bg-muted/20">
+        {#if error}
+            <div class="mb-3 px-3 py-2 bg-destructive/5 border border-destructive/20 rounded text-xs text-destructive flex items-center justify-between">
+                <span>{error}</span>
+                <button on:click={() => error = ''} class="font-bold hover:opacity-70">&times;</button>
+            </div>
+        {/if}
+        
+        <div class="flex items-end gap-2">
+            <div class="flex-1 border border-border rounded bg-white focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition-all">
+                <textarea
+                    bind:this={textarea}
+                    bind:value={inputMessage}
+                    on:keydown={handleKeydown}
+                    on:input={autoResize}
+                    placeholder="Ask a question about datasets..."
+                    disabled={isLoading}
+                    rows="1"
+                    class="w-full bg-transparent border-0 focus:ring-0 resize-none py-2.5 px-3 text-sm text-foreground placeholder:text-muted-foreground"
+                ></textarea>
+            </div>
+            
+            <button 
+                class="p-2.5 rounded bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+                on:click={handleSend} 
+                disabled={isLoading || !inputMessage.trim()}
+                aria-label="Send message"
+            >
+                <Send class="w-4 h-4" />
+            </button>
+        </div>
+        
+        <p class="text-center text-xs text-muted-foreground mt-2">
+            Responses are generated using RAG and may require verification.
+        </p>
+    </div>
 </div>
-
-<style>
-	.query-panel {
-		display: flex;
-		flex-direction: column;
-		height: 620px;
-		max-height: 82vh;
-		background: #ffffff;
-		border-radius: 8px;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
-		overflow: hidden;
-		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-	}
-
-	/* Header */
-	.panel-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 18px 24px;
-		background: #fafafa;
-		border-bottom: 1px solid #eaeaea;
-	}
-
-	.header-brand {
-		display: flex;
-		align-items: center;
-		gap: 14px;
-	}
-
-	.brand-mark {
-		width: 10px;
-		height: 32px;
-		background: #1a1a1a;
-		border-radius: 2px;
-	}
-
-	.brand-text h1 {
-		margin: 0;
-		font-size: 17px;
-		font-weight: 600;
-		color: #1a1a1a;
-		letter-spacing: -0.02em;
-	}
-
-	.brand-text span {
-		font-size: 12px;
-		color: #888;
-		letter-spacing: 0.01em;
-	}
-
-	.btn-secondary {
-		padding: 8px 16px;
-		background: #fff;
-		border: 1px solid #d0d0d0;
-		border-radius: 6px;
-		font-size: 13px;
-		font-weight: 500;
-		color: #444;
-		cursor: pointer;
-		transition: all 0.15s ease;
-	}
-
-	.btn-secondary:hover {
-		background: #f5f5f5;
-		border-color: #1a1a1a;
-		color: #1a1a1a;
-	}
-
-	/* Content */
-	.content-area {
-		flex: 1;
-		overflow-y: auto;
-		padding: 32px 28px;
-	}
-
-	/* Intro */
-	.intro {
-		max-width: 480px;
-	}
-
-	.intro h2 {
-		margin: 0 0 12px 0;
-		font-size: 22px;
-		font-weight: 600;
-		color: #1a1a1a;
-		letter-spacing: -0.02em;
-	}
-
-	.intro p {
-		margin: 0 0 28px 0;
-		font-size: 15px;
-		line-height: 1.65;
-		color: #555;
-	}
-
-	.suggestions {
-		padding-top: 20px;
-		border-top: 1px solid #eee;
-	}
-
-	.suggestions-label {
-		display: block;
-		margin-bottom: 12px;
-		font-size: 11px;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		color: #999;
-	}
-
-	.suggestion-buttons {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-	}
-
-	.suggestion-buttons button {
-		padding: 9px 16px;
-		background: #fff;
-		border: 1px solid #ddd;
-		border-radius: 6px;
-		font-size: 13px;
-		color: #444;
-		cursor: pointer;
-		transition: all 0.15s ease;
-	}
-
-	.suggestion-buttons button:hover {
-		background: #fafafa;
-		border-color: #1a1a1a;
-		color: #1a1a1a;
-	}
-
-	/* Conversation */
-	.conversation {
-		display: flex;
-		flex-direction: column;
-		gap: 28px;
-	}
-
-	.turn {
-		padding-bottom: 24px;
-		border-bottom: 1px solid #f0f0f0;
-	}
-
-	.turn:last-child {
-		border-bottom: none;
-		padding-bottom: 0;
-	}
-
-	.turn-header {
-		margin-bottom: 10px;
-	}
-
-	.turn-type {
-		font-size: 11px;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: #aaa;
-	}
-
-	.turn.user .turn-type {
-		color: #1a1a1a;
-	}
-
-	.turn-body {
-		font-size: 15px;
-		line-height: 1.7;
-		color: #333;
-	}
-
-	.turn.user .turn-body {
-		color: #1a1a1a;
-		font-weight: 500;
-	}
-
-	.turn-body.loading {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		color: #999;
-	}
-
-	.loading-text {
-		font-style: italic;
-	}
-
-	.loading-dots {
-		display: flex;
-		gap: 3px;
-	}
-
-	.loading-dots span {
-		width: 4px;
-		height: 4px;
-		background: #999;
-		border-radius: 50%;
-		animation: dot-pulse 1.2s infinite;
-	}
-
-	.loading-dots span:nth-child(2) { animation-delay: 0.15s; }
-	.loading-dots span:nth-child(3) { animation-delay: 0.3s; }
-
-	@keyframes dot-pulse {
-		0%, 100% { opacity: 0.3; }
-		50% { opacity: 1; }
-	}
-
-	/* Sources */
-	.sources-panel {
-		margin-top: 20px;
-		padding: 18px 20px;
-		background: #fafafa;
-		border-radius: 6px;
-	}
-
-	.sources-panel h4 {
-		margin: 0 0 14px 0;
-		font-size: 11px;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		color: #888;
-	}
-
-	.sources-panel ul {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-	}
-
-	.sources-panel li {
-		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-		padding: 10px 0;
-		border-bottom: 1px solid #eee;
-	}
-
-	.sources-panel li:last-child {
-		border-bottom: none;
-		padding-bottom: 0;
-	}
-
-	.sources-panel a {
-		font-size: 14px;
-		font-weight: 500;
-		color: #1a1a1a;
-		text-decoration: none;
-		transition: color 0.15s ease;
-	}
-
-	.sources-panel a:hover {
-		color: #555;
-	}
-
-	.sources-panel .relevance {
-		font-size: 12px;
-		color: #999;
-	}
-
-	/* Error */
-	.error-bar {
-		padding: 12px 24px;
-		background: #fff8f8;
-		border-top: 1px solid #ffe0e0;
-		font-size: 13px;
-		color: #b00;
-	}
-
-	/* Input */
-	.input-area {
-		display: flex;
-		gap: 12px;
-		padding: 18px 24px;
-		background: #fafafa;
-		border-top: 1px solid #eaeaea;
-	}
-
-	.input-wrapper {
-		flex: 1;
-	}
-
-	.input-wrapper textarea {
-		width: 100%;
-		padding: 12px 14px;
-		background: #fff;
-		border: 1px solid #d0d0d0;
-		border-radius: 6px;
-		font-family: inherit;
-		font-size: 14px;
-		line-height: 1.5;
-		resize: none;
-		transition: border-color 0.15s ease;
-	}
-
-	.input-wrapper textarea:focus {
-		outline: none;
-		border-color: #1a1a1a;
-	}
-
-	.input-wrapper textarea::placeholder {
-		color: #aaa;
-	}
-
-	.btn-primary {
-		padding: 12px 24px;
-		background: #1a1a1a;
-		border: none;
-		border-radius: 6px;
-		font-size: 14px;
-		font-weight: 500;
-		color: #fff;
-		cursor: pointer;
-		transition: all 0.15s ease;
-		align-self: flex-end;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background: #333;
-	}
-
-	.btn-primary:disabled {
-		background: #ccc;
-		cursor: not-allowed;
-	}
-</style>

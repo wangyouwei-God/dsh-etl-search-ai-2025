@@ -1,298 +1,265 @@
 <script lang="ts">
-	import SearchBar from '$lib/components/SearchBar.svelte';
-	import DatasetCard from '$lib/components/DatasetCard.svelte';
-	import { searchDatasets, APIError } from '$lib/api';
-	import type { SearchResponse } from '$lib/types';
+    import SearchBar from '$lib/components/SearchBar.svelte';
+    import DatasetCard from '$lib/components/DatasetCard.svelte';
+    import DatasetDetailsSheet from '$lib/components/DatasetDetailsSheet.svelte';
+    import { searchDatasets, getDataset, APIError } from '$lib/api';
+    import type { SearchResponse, Dataset } from '$lib/types';
+    import { Database, Filter, ArrowRight, Clock, Globe, FileText, ChevronRight } from 'lucide-svelte';
 
-	let query = '';
-	let results: SearchResponse | null = null;
-	let isLoading = false;
-	let error: string | null = null;
+    let query = '';
+    let results: SearchResponse | null = null;
+    let isLoading = false;
+    let error: string | null = null;
+    let hasSearched = false;
 
-	async function handleSearch(event: CustomEvent<string>) {
-		query = event.detail;
-		isLoading = true;
-		error = null;
-		results = null;
+    // Sheet State
+    let selectedDataset: Dataset | null = null;
+    let isSheetOpen = false;
+    let isSheetLoading = false;
 
-		try {
-			results = await searchDatasets(query, 20);
-		} catch (e) {
-			if (e instanceof APIError) {
-				error = e.message;
-			} else {
-				error = 'An unexpected error occurred';
-			}
-		} finally {
-			isLoading = false;
-		}
-	}
+    // Quick search suggestions
+    const suggestions = [
+        'Land cover mapping',
+        'Hydrological data UK',
+        'Biodiversity monitoring',
+        'Climate change impacts'
+    ];
+
+    // Categories
+    const categories = [
+        { id: 'land', label: 'Land Cover', query: 'land cover' },
+        { id: 'water', label: 'Hydrology', query: 'water hydrology' },
+        { id: 'bio', label: 'Biodiversity', query: 'biodiversity species' },
+        { id: 'climate', label: 'Climate', query: 'climate temperature' }
+    ];
+
+    async function handleSearch(event: CustomEvent<string>) {
+        query = event.detail;
+        if (!query.trim()) return;
+        
+        isLoading = true;
+        error = null;
+        hasSearched = true;
+        results = null;
+
+        try {
+            results = await searchDatasets(query, 20);
+        } catch (e) {
+            if (e instanceof APIError) {
+                error = e.message;
+            } else {
+                error = 'An unexpected error occurred. Please try again.';
+            }
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    async function handleOpenDataset(event: CustomEvent<Dataset>) {
+        const partialDataset = event.detail;
+        
+        selectedDataset = partialDataset;
+        isSheetOpen = true;
+        isSheetLoading = true;
+
+        try {
+            const fullDataset = await getDataset(partialDataset.id);
+            selectedDataset = fullDataset;
+        } catch (e) {
+            console.error("Failed to fetch details:", e);
+        } finally {
+            isSheetLoading = false;
+        }
+    }
+
+    function closeSheet() {
+        isSheetOpen = false;
+        setTimeout(() => {
+            selectedDataset = null;
+        }, 300);
+    }
+    
+    function resetSearch() {
+        hasSearched = false;
+        results = null;
+        query = '';
+    }
+
+    function quickSearch(term: string) {
+        query = term;
+        handleSearch(new CustomEvent('search', { detail: term }));
+    }
 </script>
 
 <svelte:head>
-	<title>Dataset Search | UK Centre for Ecology and Hydrology</title>
-	<meta name="description" content="Search environmental research datasets" />
+    <title>{query ? `${query} - ` : ''}Dataset Search and Discovery</title>
 </svelte:head>
 
-<div class="page">
-	<header class="page-header">
-		<div class="brand">
-			<div class="brand-mark"></div>
-			<div class="brand-text">
-				<h1>Environmental Dataset Search</h1>
-				<span>UK Centre for Ecology and Hydrology</span>
-			</div>
-		</div>
-	</header>
+<!-- Hero State: Initial Landing -->
+{#if !hasSearched}
+    <div class="min-h-[calc(100vh-3.5rem)] flex flex-col">
+        <!-- Hero Section -->
+        <section class="flex-1 flex items-center justify-center px-6 py-12">
+            <div class="max-w-2xl w-full text-center space-y-8">
+                <!-- Title -->
+                <div class="space-y-3">
+                    <h1 class="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
+                        Dataset Search and Discovery
+                    </h1>
+                    <p class="text-lg text-muted-foreground max-w-lg mx-auto">
+                        Search across 200+ environmental datasets using semantic search and natural language queries.
+                    </p>
+                </div>
 
-	<main class="main-content">
-		<SearchBar {isLoading} on:search={handleSearch} />
+                <!-- Search Bar -->
+                <div class="pt-2">
+                    <SearchBar {isLoading} on:search={handleSearch} variant="hero" />
+                </div>
 
-		<nav class="secondary-nav">
-			<a href="/chat">Advanced Query Interface</a>
-		</nav>
+                <!-- Quick Suggestions -->
+                <div class="pt-4">
+                    <p class="text-xs text-muted-foreground mb-3">Try searching for:</p>
+                    <div class="flex flex-wrap justify-center gap-2">
+                        {#each suggestions as suggestion}
+                            <button 
+                                class="px-3 py-1 text-xs text-muted-foreground bg-muted/50 border border-border rounded-full hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
+                                on:click={() => quickSearch(suggestion)}
+                            >
+                                {suggestion}
+                            </button>
+                        {/each}
+                    </div>
+                </div>
+            </div>
+        </section>
 
-		{#if error}
-			<div class="error-card">
-				<strong>Error:</strong> {error}
-			</div>
-		{/if}
+        <!-- Footer Stats -->
+        <footer class="border-t border-border py-4">
+            <div class="max-w-5xl mx-auto px-6">
+                <div class="flex flex-wrap justify-center gap-6 text-xs text-muted-foreground">
+                    <div class="flex items-center gap-2">
+                        <Database class="w-3.5 h-3.5" />
+                        <span>200 Datasets indexed</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <Globe class="w-3.5 h-3.5" />
+                        <span>ISO 19115 Metadata</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <FileText class="w-3.5 h-3.5" />
+                        <span>Semantic Vector Search</span>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+{/if}
 
-		{#if results}
-			<section class="results-section">
-				<header class="results-header">
-					<h2>{results.total_results} result{results.total_results !== 1 ? 's' : ''}</h2>
-					<span class="meta">{results.processing_time_ms.toFixed(0)}ms</span>
-				</header>
+<!-- Results State: Active Search -->
+{#if hasSearched}
+    <div class="flex max-w-7xl mx-auto">
+        <!-- Sidebar Filters -->
+        <aside class="hidden lg:block w-64 shrink-0 border-r border-border bg-white min-h-[calc(100vh-3.5rem)] p-6">
+            <div class="flex items-center gap-2 text-sm font-medium text-foreground mb-6">
+                <Filter class="w-4 h-4" />
+                Filters
+            </div>
+            
+            <!-- Category Filter -->
+            <div class="space-y-4">
+                <div>
+                    <div class="section-header mb-3">Category</div>
+                    <div class="space-y-1">
+                        {#each categories as category}
+                            <button 
+                                class="w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+                                on:click={() => quickSearch(category.query)}
+                            >
+                                {category.label}
+                            </button>
+                        {/each}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Reset Button -->
+            <div class="mt-8 pt-6 border-t border-border">
+                <button 
+                    class="w-full btn-secondary text-xs"
+                    on:click={resetSearch}
+                >
+                    Clear Search
+                </button>
+            </div>
+        </aside>
 
-				{#if results.total_results === 0}
-					<p class="empty-state">No datasets found for "{query}". Try different search terms.</p>
-				{:else}
-					<div class="results-list">
-						{#each results.results as dataset (dataset.id)}
-							<DatasetCard {dataset} />
-						{/each}
-					</div>
-				{/if}
-			</section>
-		{:else if !isLoading}
-			<section class="welcome-card">
-				<h2>Search the Catalogue</h2>
-				<p>Enter keywords to search across curated environmental research datasets.</p>
-				<div class="topics">
-					<span class="topics-label">Example topics</span>
-					<div class="topic-buttons">
-						{#each ['Land cover mapping', 'Climate data', 'Biodiversity monitoring'] as topic}
-							<button on:click={() => handleSearch(new CustomEvent('search', { detail: topic }))}>
-								{topic}
-							</button>
-						{/each}
-					</div>
-				</div>
-			</section>
-		{/if}
-	</main>
+        <!-- Results Area -->
+        <main class="flex-1 min-w-0 p-6 lg:p-8">
+            <!-- Search Bar (Inline) -->
+            <div class="mb-6">
+                <SearchBar 
+                    value={query} 
+                    {isLoading} 
+                    on:search={handleSearch} 
+                    variant="compact" 
+                />
+            </div>
 
-	<footer class="page-footer">
-		<span>Research Software Engineering Assessment</span>
-	</footer>
-</div>
+            {#if error}
+                <div class="p-4 bg-destructive/5 border border-destructive/20 rounded text-sm text-destructive">
+                    {error}
+                </div>
+            {:else if results}
+                <!-- Results Header -->
+                <div class="flex justify-between items-baseline mb-6">
+                    <div>
+                        <h2 class="text-lg font-semibold text-foreground">
+                            {results.total_results} {results.total_results === 1 ? 'result' : 'results'}
+                        </h2>
+                        <p class="text-sm text-muted-foreground">
+                            for "{query}"
+                        </p>
+                    </div>
+                    <span class="text-xs text-muted-foreground font-mono">
+                        {results.processing_time_ms.toFixed(0)}ms
+                    </span>
+                </div>
 
-<style>
-	.page {
-		min-height: 100vh;
-		display: flex;
-		flex-direction: column;
-		background: #f8f8f8;
-		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-	}
+                {#if results.total_results === 0}
+                    <div class="text-center py-16 bg-white rounded border border-dashed border-border">
+                        <p class="text-muted-foreground mb-2">No datasets found matching your query.</p>
+                        <p class="text-sm text-muted-foreground">Try adjusting your search terms.</p>
+                    </div>
+                {:else}
+                    <div class="space-y-4">
+                        {#each results.results as dataset (dataset.id)}
+                            <DatasetCard 
+                                {dataset} 
+                                on:open={handleOpenDataset} 
+                            />
+                        {/each}
+                    </div>
+                {/if}
+            {:else if isLoading}
+                <!-- Loading Skeleton -->
+                <div class="space-y-4">
+                    {#each Array(4) as _}
+                        <div class="card p-6 animate-pulse">
+                            <div class="h-5 bg-muted rounded w-3/4 mb-3"></div>
+                            <div class="h-4 bg-muted rounded w-full mb-2"></div>
+                            <div class="h-4 bg-muted rounded w-2/3"></div>
+                        </div>
+                    {/each}
+                </div>
+            {/if}
+        </main>
+    </div>
+{/if}
 
-	/* Header */
-	.page-header {
-		padding: 28px 32px;
-		background: #fff;
-		border-bottom: 1px solid #eaeaea;
-	}
-
-	.brand {
-		display: flex;
-		align-items: center;
-		gap: 16px;
-		max-width: 800px;
-		margin: 0 auto;
-	}
-
-	.brand-mark {
-		width: 8px;
-		height: 36px;
-		background: #1a1a1a;
-		border-radius: 2px;
-	}
-
-	.brand-text h1 {
-		margin: 0;
-		font-size: 20px;
-		font-weight: 600;
-		color: #1a1a1a;
-		letter-spacing: -0.02em;
-	}
-
-	.brand-text span {
-		font-size: 13px;
-		color: #888;
-	}
-
-	/* Main */
-	.main-content {
-		flex: 1;
-		max-width: 800px;
-		width: 100%;
-		margin: 0 auto;
-		padding: 32px 24px 60px;
-	}
-
-	/* Nav */
-	.secondary-nav {
-		text-align: center;
-		margin-top: 16px;
-	}
-
-	.secondary-nav a {
-		font-size: 13px;
-		color: #666;
-		text-decoration: none;
-		transition: color 0.15s ease;
-	}
-
-	.secondary-nav a:hover {
-		color: #1a1a1a;
-	}
-
-	/* Error */
-	.error-card {
-		margin-top: 24px;
-		padding: 16px 20px;
-		background: #fff;
-		border: 1px solid #f0d0d0;
-		border-radius: 8px;
-		font-size: 14px;
-		color: #a00;
-	}
-
-	.error-card strong {
-		font-weight: 600;
-	}
-
-	/* Results */
-	.results-section {
-		margin-top: 36px;
-	}
-
-	.results-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-		padding-bottom: 16px;
-		margin-bottom: 20px;
-		border-bottom: 1px solid #e0e0e0;
-	}
-
-	.results-header h2 {
-		margin: 0;
-		font-size: 18px;
-		font-weight: 600;
-		color: #1a1a1a;
-	}
-
-	.results-header .meta {
-		font-size: 12px;
-		color: #999;
-	}
-
-	.results-list {
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
-	}
-
-	.empty-state {
-		padding: 48px 0;
-		text-align: center;
-		font-size: 15px;
-		color: #666;
-	}
-
-	/* Welcome */
-	.welcome-card {
-		margin-top: 40px;
-		padding: 32px;
-		background: #fff;
-		border-radius: 8px;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-	}
-
-	.welcome-card h2 {
-		margin: 0 0 10px 0;
-		font-size: 18px;
-		font-weight: 600;
-		color: #1a1a1a;
-	}
-
-	.welcome-card p {
-		margin: 0 0 24px 0;
-		font-size: 15px;
-		line-height: 1.6;
-		color: #555;
-	}
-
-	.topics {
-		padding-top: 20px;
-		border-top: 1px solid #f0f0f0;
-	}
-
-	.topics-label {
-		display: block;
-		margin-bottom: 12px;
-		font-size: 11px;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		color: #999;
-	}
-
-	.topic-buttons {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-	}
-
-	.topic-buttons button {
-		padding: 9px 16px;
-		background: #fafafa;
-		border: 1px solid #e0e0e0;
-		border-radius: 6px;
-		font-size: 13px;
-		color: #444;
-		cursor: pointer;
-		transition: all 0.15s ease;
-	}
-
-	.topic-buttons button:hover {
-		background: #fff;
-		border-color: #1a1a1a;
-		color: #1a1a1a;
-	}
-
-	/* Footer */
-	.page-footer {
-		padding: 20px 32px;
-		background: #fff;
-		border-top: 1px solid #eaeaea;
-		text-align: center;
-	}
-
-	.page-footer span {
-		font-size: 12px;
-		color: #999;
-	}
-</style>
+<!-- Details Sheet -->
+<DatasetDetailsSheet 
+    dataset={selectedDataset} 
+    isOpen={isSheetOpen} 
+    isLoading={isSheetLoading}
+    on:close={closeSheet} 
+/>

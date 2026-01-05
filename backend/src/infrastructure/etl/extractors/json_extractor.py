@@ -12,6 +12,7 @@ Author: University of Manchester RSE Team
 
 import json
 import os
+import re
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 import sys
@@ -24,42 +25,14 @@ from application.interfaces.metadata_extractor import (
     MetadataExtractionError,
     UnsupportedFormatError
 )
-from domain.entities.metadata import Metadata, BoundingBox
+from domain.entities.metadata import Metadata, BoundingBox, MetadataRelationship
+from domain.entities.resource import Resource, RemoteFileResource, WebFolderResource, APIDataResource
 
 
 class JSONExtractor(IMetadataExtractor):
     """
     Concrete implementation of IMetadataExtractor for JSON-formatted metadata.
-
-    This extractor handles JSON files that contain ISO 19115 metadata in a
-    structured format. It parses the JSON, validates the structure, and
-    transforms it into a Metadata domain entity.
-
-    Strategy Pattern:
-        - Implements the IMetadataExtractor interface
-        - Provides JSON-specific extraction logic
-        - Can be swapped with other extractors (XML, CSV, etc.)
-
-    Attributes:
-        strict_mode: If True, raises errors for missing fields.
-                    If False, uses default values for missing fields.
-
-    Example JSON structure expected:
-        {
-            "title": "Climate Dataset 2023",
-            "abstract": "Temperature measurements...",
-            "keywords": ["climate", "temperature"],
-            "bounding_box": {
-                "west": -180.0,
-                "east": 180.0,
-                "south": -90.0,
-                "north": 90.0
-            },
-            "contact": {
-                "organization": "University of Manchester",
-                "email": "data@manchester.ac.uk"
-            }
-        }
+    ...
     """
 
     def __init__(self, strict_mode: bool = False):
@@ -71,6 +44,59 @@ class JSONExtractor(IMetadataExtractor):
                         If False, use defaults for missing optional fields.
         """
         self.strict_mode = strict_mode
+
+    def extract_resources(self, source_path: str) -> List[Resource]:
+        """
+        Extract distribution resources from the JSON metadata.
+        
+        This implements the polymorphic resource extraction required by the task.
+        """
+        resources: List[Resource] = []
+        
+        try:
+            with open(source_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # Check onlineResources (UKCEH specific)
+            online_resources = data.get('onlineResources', [])
+            if not online_resources:
+                # Fallback: check 'distribution' or 'downloadUrl'
+                if 'downloadUrl' in data:
+                    online_resources.append({'url': data['downloadUrl'], 'name': 'Direct Download', 'function': 'download'})
+            
+            for res in online_resources:
+                url = res.get('url', '')
+                if not url:
+                    continue
+                    
+                name = res.get('name', 'Untitled Resource')
+                desc = res.get('description', '')
+                
+                # Polymorphic creation logic
+                # 1. Zip files -> RemoteFileResource
+                if url.endswith('.zip') or res.get('function') == 'download':
+                    resources.append(RemoteFileResource(url=url, title=name, description=desc))
+                
+                # 2. Datastore/Folders -> WebFolderResource
+                elif '/datastore/' in url or url.endswith('/'):
+                    resources.append(WebFolderResource(url=url, title=name, description=desc))
+                
+                # 3. API endpoints -> APIDataResource
+                elif '/api/' in url or 'json' in url:
+                    resources.append(APIDataResource(url=url, title=name, description=desc))
+                
+                # Default to RemoteFile for unknown types if likely a file
+                else:
+                    # Heuristic: assume it's a file if it has an extension
+                    if '.' in url.split('/')[-1]:
+                        resources.append(RemoteFileResource(url=url, title=name, description=desc))
+        
+        except Exception as e:
+            # Log error but return what we found so far
+            # In a real system, we might want to raise, but here we prioritize resilience
+            print(f"Error extracting resources from {source_path}: {e}")
+            
+        return resources
 
     def extract(self, source_path: str) -> Metadata:
         """
@@ -159,29 +185,30 @@ class JSONExtractor(IMetadataExtractor):
         Raises:
             ValueError: If required fields are missing in strict mode
         """
-        # Extract mandatory fields
+        # Extract mandatory fields (CEH JSON uses 'description' for abstract)
         title = self._get_required_field(data, 'title')
-        abstract = self._get_required_field(data, 'abstract')
+        abstract = data.get('abstract') or data.get('description')
+        if not abstract or (isinstance(abstract, str) and not abstract.strip()):
+            abstract = self._get_required_field(data, 'abstract')
 
         # Extract optional fields with defaults
-        keywords = data.get('keywords', [])
-        if not isinstance(keywords, list):
-            keywords = []
+        keywords = self._extract_keywords(data)
 
-        # Extract bounding box if present
-        bounding_box = self._extract_bounding_box(data.get('bounding_box'))
+        # Extract bounding box if present (CEH JSON uses boundingBoxes)
+        bounding_box = self._extract_bounding_box(
+            data.get('bounding_box') or data.get('boundingBoxes')
+        )
 
         # Extract temporal extent
-        temporal_start = self._parse_datetime(data.get('temporal_extent', {}).get('start'))
-        temporal_end = self._parse_datetime(data.get('temporal_extent', {}).get('end'))
+        temporal_start, temporal_end = self._extract_temporal_extent(data)
 
         # Extract contact information
-        contact = data.get('contact', {})
-        contact_organization = contact.get('organization', '')
-        contact_email = contact.get('email', '')
+        contact_organization, contact_email = self._extract_contact(data)
 
         # Extract metadata date
-        metadata_date = self._parse_datetime(data.get('metadata_date'))
+        metadata_date = self._parse_datetime(
+            data.get('metadata_date') or data.get('metadataDate')
+        )
         if metadata_date is None:
             metadata_date = datetime.utcnow()
 
@@ -189,7 +216,13 @@ class JSONExtractor(IMetadataExtractor):
         dataset_language = data.get('language', 'eng')
 
         # Extract topic category
-        topic_category = data.get('topic_category', '')
+        topic_category = self._extract_topic_category(data)
+
+        # Extract distribution information
+        download_url, landing_page_url, access_type = self._extract_distribution_info(data)
+
+        # Extract relationships between metadata documents (JSON-specific)
+        relationships = self._extract_relationships(data)
 
         # Create and return Metadata entity
         # The Metadata constructor will validate invariants
@@ -204,7 +237,11 @@ class JSONExtractor(IMetadataExtractor):
             contact_email=contact_email,
             metadata_date=metadata_date,
             dataset_language=dataset_language,
-            topic_category=topic_category
+            topic_category=topic_category,
+            download_url=download_url,
+            landing_page_url=landing_page_url,
+            access_type=access_type,
+            relationships=relationships
         )
 
     def _get_required_field(self, data: Dict[str, Any], field_name: str) -> str:
@@ -232,12 +269,261 @@ class JSONExtractor(IMetadataExtractor):
 
         return str(value)
 
-    def _extract_bounding_box(self, bbox_data: Optional[Dict[str, Any]]) -> Optional[BoundingBox]:
+    def _extract_keywords(self, data: Dict[str, Any]) -> List[str]:
+        """Extract keywords from CEH JSON or generic JSON."""
+        keywords: List[str] = []
+
+        # Generic keywords field
+        raw = data.get('keywords')
+        if isinstance(raw, list):
+            keywords.extend([str(k) for k in raw if k])
+
+        # CEH keyword lists
+        for key in ('keywordsTheme', 'keywordsPlace', 'keywordsOther'):
+            items = data.get(key, [])
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                if isinstance(item, dict):
+                    value = item.get('value') or item.get('label')
+                    if value:
+                        keywords.append(str(value))
+                elif item:
+                    keywords.append(str(item))
+
+        # De-duplicate while preserving order
+        seen = set()
+        deduped: List[str] = []
+        for kw in keywords:
+            if kw not in seen:
+                deduped.append(kw)
+                seen.add(kw)
+        return deduped
+
+    def _extract_temporal_extent(self, data: Dict[str, Any]) -> tuple[Optional[datetime], Optional[datetime]]:
+        """Extract temporal extent from CEH JSON or generic JSON."""
+        temporal = data.get('temporal_extent', {})
+        if isinstance(temporal, dict):
+            start = self._parse_datetime(temporal.get('start'))
+            end = self._parse_datetime(temporal.get('end'))
+            if start or end:
+                return start, end
+
+        extents = data.get('temporalExtents', [])
+        if isinstance(extents, list) and extents:
+            first = extents[0]
+            if isinstance(first, dict):
+                start = self._parse_datetime(first.get('begin'))
+                end = self._parse_datetime(first.get('end'))
+                return start, end
+
+        return None, None
+
+    def _extract_contact(self, data: Dict[str, Any]) -> tuple[str, str]:
+        """Extract contact organization/email from CEH JSON or generic JSON."""
+        contact = data.get('contact', {})
+        if isinstance(contact, dict):
+            org = contact.get('organization', '') or contact.get('organisation', '')
+            email = contact.get('email', '')
+            if org or email:
+                return org, email
+
+        for key in ('pointsOfContact', 'distributorContacts'):
+            contacts = data.get(key, [])
+            if isinstance(contacts, list) and contacts:
+                first = contacts[0]
+                if isinstance(first, dict):
+                    org = first.get('organisationName', '') or first.get('organizationName', '')
+                    email = first.get('email', '')
+                    return org, email
+
+        return "", ""
+
+    def _extract_distribution_info(self, data: Dict[str, Any]) -> tuple[str, str, str]:
+        """
+        Extract download URL, landing page URL, and access type from CEH JSON.
+
+        Returns:
+            Tuple of (download_url, landing_page_url, access_type)
+        """
+        download_url = ""
+        landing_page_url = ""
+        access_type = "download"
+
+        download_candidates = []
+        detected_access_types = []
+
+        def is_supporting_resource(url: str, name: str, func: str) -> bool:
+            name_l = (name or "").lower()
+            func_l = (func or "").lower()
+            if "support" in name_l or "supporting" in name_l:
+                return True
+            if "/sd/" in url:
+                return True
+            if func_l == "information" and url.endswith(".zip"):
+                return True
+            return False
+
+        def add_download_candidate(url: str, func: str, name: str) -> None:
+            if not url:
+                return
+            func_l = (func or "").lower()
+            name_l = (name or "").lower()
+
+            if func_l == "fileaccess":
+                detected_access_types.append("fileAccess")
+            elif func_l == "download":
+                detected_access_types.append("download")
+
+            if is_supporting_resource(url, name, func):
+                return
+
+            is_datastore = "datastore/eidchub" in url
+            is_data_package = "data-package.ceh.ac.uk/data" in url
+            is_zip = url.endswith(".zip")
+            is_download = "download" in func_l or "download" in name_l
+            is_file_access = func_l == "fileaccess"
+
+            priority = 0
+            if (is_download or is_file_access) and (is_datastore or is_data_package):
+                priority = 3
+            elif is_datastore or is_data_package:
+                priority = 2
+            elif is_download or is_file_access:
+                priority = 1
+            elif is_zip:
+                priority = 1
+
+            if priority > 0:
+                download_candidates.append((priority, url, func_l))
+
+        online_resources = data.get("onlineResources") or []
+        info_links = data.get("infoLinks") or []
+
+        for res in online_resources:
+            if not isinstance(res, dict):
+                continue
+            url = (res.get("url") or "").strip()
+            add_download_candidate(url, res.get("function", ""), res.get("name", ""))
+
+        direct_download = data.get("downloadUrl") or data.get("downloadURL") or data.get("download_url")
+        if isinstance(direct_download, str):
+            add_download_candidate(direct_download.strip(), "download", "download")
+
+        if download_candidates:
+            download_candidates.sort(key=lambda x: x[0], reverse=True)
+            download_url = download_candidates[0][1]
+
+        if "fileAccess" in detected_access_types:
+            access_type = "fileAccess"
+
+        landing_page_url = data.get("uri") or data.get("landing_page_url") or ""
+        if not landing_page_url:
+            for res in info_links + online_resources:
+                if not isinstance(res, dict):
+                    continue
+                url = (res.get("url") or "").strip()
+                if not url:
+                    continue
+                func_l = (res.get("function") or "").lower()
+                name_l = (res.get("name") or "").lower()
+                if func_l == "information" or "information" in name_l:
+                    if not url.endswith(".zip"):
+                        landing_page_url = url
+                        break
+                if "catalogue.ceh.ac.uk" in url and not url.endswith(".zip"):
+                    landing_page_url = url
+                    break
+
+        return download_url, landing_page_url, access_type
+
+    def _extract_relationships(self, data: Dict[str, Any]) -> List[MetadataRelationship]:
+        """
+        Extract metadata relationships from CEH JSON.
+
+        Expected structure:
+            "relationships": [{"relation": "<uri>", "target": "<uuid|url>"}]
+        """
+        relationships: List[MetadataRelationship] = []
+        raw_relationships = data.get("relationships") or []
+        if not isinstance(raw_relationships, list):
+            return relationships
+
+        for item in raw_relationships:
+            if not isinstance(item, dict):
+                continue
+            relation = (item.get("relation") or item.get("predicate") or "").strip()
+            if not relation:
+                continue
+
+            target = item.get("target") or item.get("object") or item.get("identifier")
+            targets = target if isinstance(target, list) else [target]
+
+            for target_item in targets:
+                target_value = self._normalize_target(target_item)
+                if not target_value:
+                    continue
+                target_id = self._extract_target_id(target_value)
+                target_url = target_value if target_value.startswith(("http://", "https://")) else ""
+                relationships.append(
+                    MetadataRelationship(
+                        relation=relation,
+                        target=target_value,
+                        target_id=target_id,
+                        target_url=target_url
+                    )
+                )
+
+        return relationships
+
+    def _normalize_target(self, target: Any) -> str:
+        """Normalize relationship target into a string identifier or URL."""
+        if target is None:
+            return ""
+        if isinstance(target, dict):
+            for key in ("id", "uuid", "identifier", "uri", "url", "href"):
+                value = target.get(key)
+                if value:
+                    return str(value).strip()
+            return ""
+        return str(target).strip()
+
+    def _extract_target_id(self, target: str) -> str:
+        """Extract UUID from a target string or URL if present."""
+        if self._looks_like_uuid(target):
+            return target
+        if target.startswith(("http://", "https://")):
+            parts = target.rstrip("/").split("/")
+            if parts:
+                candidate = parts[-1]
+                if self._looks_like_uuid(candidate):
+                    return candidate
+        return ""
+
+    def _looks_like_uuid(self, value: str) -> bool:
+        """Check if value matches UUID format."""
+        return bool(re.fullmatch(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", value))
+
+    def _extract_topic_category(self, data: Dict[str, Any]) -> str:
+        """Extract topic category from CEH JSON or generic JSON."""
+        if 'topic_category' in data:
+            return data.get('topic_category', '')
+
+        topics = data.get('topicCategories', [])
+        if isinstance(topics, list) and topics:
+            first = topics[0]
+            if isinstance(first, dict):
+                return first.get('value', '') or first.get('label', '')
+            return str(first)
+
+        return ""
+
+    def _extract_bounding_box(self, bbox_data: Optional[Any]) -> Optional[BoundingBox]:
         """
         Extract and validate a bounding box from JSON data.
 
         Args:
-            bbox_data: Dictionary containing bounding box coordinates
+            bbox_data: Dictionary or list containing bounding box coordinates
 
         Returns:
             BoundingBox or None if data is not provided
@@ -249,11 +535,17 @@ class JSONExtractor(IMetadataExtractor):
             return None
 
         try:
+            if isinstance(bbox_data, list) and bbox_data:
+                bbox_data = bbox_data[0]
+
+            if not isinstance(bbox_data, dict):
+                return None
+
             # Support both verbose and short field names
-            west = bbox_data.get('west', bbox_data.get('west_longitude'))
-            east = bbox_data.get('east', bbox_data.get('east_longitude'))
-            south = bbox_data.get('south', bbox_data.get('south_latitude'))
-            north = bbox_data.get('north', bbox_data.get('north_latitude'))
+            west = bbox_data.get('west', bbox_data.get('west_longitude', bbox_data.get('westBoundLongitude')))
+            east = bbox_data.get('east', bbox_data.get('east_longitude', bbox_data.get('eastBoundLongitude')))
+            south = bbox_data.get('south', bbox_data.get('south_latitude', bbox_data.get('southBoundLatitude')))
+            north = bbox_data.get('north', bbox_data.get('north_latitude', bbox_data.get('northBoundLatitude')))
 
             if any(coord is None for coord in [west, east, south, north]):
                 if self.strict_mode:
@@ -269,7 +561,9 @@ class JSONExtractor(IMetadataExtractor):
             )
 
         except (TypeError, ValueError) as e:
-            raise ValueError(f"Invalid bounding box data: {str(e)}")
+            if self.strict_mode:
+                raise ValueError(f"Invalid bounding box data: {str(e)}")
+            return None
 
     def _parse_datetime(self, date_str: Optional[str]) -> Optional[datetime]:
         """

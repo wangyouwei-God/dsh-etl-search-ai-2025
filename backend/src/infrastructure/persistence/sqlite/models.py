@@ -64,6 +64,13 @@ class DatasetModel(Base):
         cascade="all, delete-orphan"
     )
 
+    # Relationship to metadata relationships (one-to-many)
+    metadata_relationships = relationship(
+        "MetadataRelationshipModel",
+        back_populates="dataset",
+        cascade="all, delete-orphan"
+    )
+
     # Indexes for search performance
     __table_args__ = (
         Index('idx_dataset_title', 'title'),
@@ -111,6 +118,29 @@ class MetadataModel(Base):
     metadata_date = Column(DateTime, nullable=False, default=datetime.utcnow)
     dataset_language = Column(String(10), nullable=True, default='eng')
     topic_category = Column(String(100), nullable=True)
+
+    # Raw document storage (TASK REQUIREMENT: "store the entire document in a field")
+    # PDF p.3: "You need to store the entire document in a field in the database"
+    raw_document_json = Column(Text, nullable=True,
+        comment="Complete original JSON document for data provenance")
+    raw_document_xml = Column(Text, nullable=True,
+        comment="Complete original XML document for data provenance")
+    document_format = Column(String(20), nullable=True,
+        comment="Original document format: json, xml, jsonld, rdf")
+    document_checksum = Column(String(64), nullable=True,
+        comment="SHA-256 checksum of original document for integrity verification")
+
+    # Access type (PDF requirement: distinguish download vs fileAccess)
+    # "download": Dataset provided as ZIP file
+    # "fileAccess": Dataset available through web-accessible folder
+    access_type = Column(String(20), nullable=True, default='download',
+        comment="Access method: 'download' for ZIP files, 'fileAccess' for web folders")
+
+    # Distribution URLs (for ZIP extraction and data access)
+    download_url = Column(Text, nullable=True,
+        comment="Direct download URL for ZIP files or data")
+    landing_page_url = Column(Text, nullable=True,
+        comment="Landing page URL for dataset information")
 
     # Relationship to dataset
     dataset = relationship("DatasetModel", back_populates="dataset_metadata")
@@ -177,6 +207,36 @@ class MetadataModel(Base):
             except json.JSONDecodeError:
                 return None
         return None
+
+
+class MetadataRelationshipModel(Base):
+    """
+    SQLAlchemy model for metadata relationships.
+
+    Stores relationship predicates and targets extracted from JSON metadata.
+    """
+
+    __tablename__ = 'metadata_relationships'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    dataset_id = Column(String(36), ForeignKey('datasets.id'), nullable=False, index=True)
+
+    relation = Column(String(500), nullable=False)
+    target = Column(Text, nullable=False)
+    target_id = Column(String(36), nullable=True, index=True)
+    target_url = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    dataset = relationship("DatasetModel", back_populates="metadata_relationships")
+
+    __table_args__ = (
+        Index('idx_meta_rel_dataset_id', 'dataset_id'),
+        Index('idx_meta_rel_target_id', 'target_id'),
+    )
+
+    def __repr__(self):
+        return f"<MetadataRelationshipModel(dataset_id='{self.dataset_id}', target='{self.target[:50]}...')>"
 
 
 class DataFileModel(Base):
@@ -294,4 +354,3 @@ def drop_tables(engine):
         >>> drop_tables(engine)
     """
     Base.metadata.drop_all(engine)
-

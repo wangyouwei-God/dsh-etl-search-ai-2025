@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Generator
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
@@ -101,10 +101,28 @@ class DatabaseConnection:
         """
         try:
             Base.metadata.create_all(bind=self.engine)
+            self._ensure_metadata_columns()
             logger.info("Database tables created successfully")
         except Exception as e:
             logger.error(f"Failed to create tables: {str(e)}")
             raise
+
+    def _ensure_metadata_columns(self):
+        """Add missing columns for older SQLite schemas."""
+        required_columns = {
+            "access_type": "VARCHAR(20) DEFAULT 'download'",
+            "download_url": "TEXT",
+            "landing_page_url": "TEXT",
+        }
+
+        with self.engine.begin() as conn:
+            result = conn.execute(text("PRAGMA table_info(metadata)")).fetchall()
+            existing = {row[1] for row in result}
+
+            for name, ddl in required_columns.items():
+                if name not in existing:
+                    conn.execute(text(f"ALTER TABLE metadata ADD COLUMN {name} {ddl}"))
+                    logger.info(f"Added missing column to metadata: {name}")
 
     def drop_tables(self):
         """

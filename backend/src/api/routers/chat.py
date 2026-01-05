@@ -76,8 +76,12 @@ async def chat(
             include_sources=request.include_sources
         )
         
-        # Convert sources to API schema
-        sources = [context_to_source_schema(ctx) for ctx in response.sources]
+        # Convert sources to API schema (respect include_sources flag)
+        sources = (
+            [context_to_source_schema(ctx) for ctx in response.sources]
+            if request.include_sources
+            else []
+        )
         
         logger.info(
             f"Chat response: {len(response.answer)} chars, "

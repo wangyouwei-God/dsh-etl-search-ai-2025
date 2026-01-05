@@ -13,10 +13,13 @@ Design Pattern: Strategy Pattern (Concrete Strategy)
 Author: University of Manchester RSE Team
 """
 
+import logging
 import os
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 import sys
+
+logger = logging.getLogger(__name__)
 
 from lxml import etree
 
@@ -196,6 +199,9 @@ class XMLExtractor(IMetadataExtractor):
         language = self._extract_language(root)
         topic_category = self._extract_topic_category(root)
 
+        # Extract distribution info (now returns 3 values including access_type)
+        download_url, landing_page_url, access_type = self._extract_distribution_info(root)
+
         # Create and return Metadata entity
         return Metadata(
             title=title,
@@ -208,7 +214,10 @@ class XMLExtractor(IMetadataExtractor):
             contact_email=contact_email,
             metadata_date=metadata_date,
             dataset_language=language,
-            topic_category=topic_category
+            topic_category=topic_category,
+            download_url=download_url,
+            landing_page_url=landing_page_url,
+            access_type=access_type
         )
 
     def _extract_title(self, root: etree._Element) -> str:
@@ -574,6 +583,126 @@ class XMLExtractor(IMetadataExtractor):
                 continue
 
         return None
+
+    def _extract_distribution_info(self, root: etree._Element) -> tuple[str, str, str]:
+        """
+        Extract download URL, landing page URL, and access type from XML.
+
+        XPath: .//gmd:distributionInfo//gmd:onLine//gmd:CI_OnlineResource
+
+        Access types (per PDF requirements):
+        - "download": Dataset provided as ZIP file (most common)
+        - "fileAccess": Dataset available through web-accessible folder
+        
+        Args:
+            root: XML root element
+
+        Returns:
+            Tuple of (download_url, landing_page_url, access_type)
+        """
+        download_url = ""
+        landing_page_url = ""
+        access_type = "download"  # Default to download
+
+        # XPath to find all online resources
+        xpath = './/gmd:distributionInfo//gmd:onLine//gmd:CI_OnlineResource'
+        resources = root.xpath(xpath, namespaces=self.namespaces)
+
+        if not resources:
+            return "", "", "download"
+
+        # Track all candidate URLs and their function codes
+        download_candidates = []
+        landing_candidates = []
+        detected_access_types = []
+
+        for resource in resources:
+            # Extract URL
+            url_xpath = './/gmd:linkage/gmd:URL'
+            urls = resource.xpath(url_xpath, namespaces=self.namespaces)
+            if not urls or not urls[0].text:
+                continue
+
+            url = urls[0].text.strip()
+
+            # Extract description/name
+            name_xpath = './/gmd:name/gco:CharacterString'
+            name_elems = resource.xpath(name_xpath, namespaces=self.namespaces)
+            name = name_elems[0].text.strip() if name_elems and name_elems[0].text else ""
+
+            # Extract function/role - this tells us download vs fileAccess
+            # Codes: 'download', 'fileAccess', 'information', 'search', etc.
+            func_xpath = './/gmd:function/gmd:CI_OnLineFunctionCode'
+            funcs = resource.xpath(func_xpath, namespaces=self.namespaces)
+
+            func_code = ""
+            if funcs and 'codeListValue' in funcs[0].attrib:
+                func_code = funcs[0].attrib['codeListValue']
+            elif funcs and funcs[0].text:
+                func_code = funcs[0].text.strip()
+
+            # CRITICAL: Check for fileAccess access type
+            if func_code.lower() == 'fileaccess':
+                detected_access_types.append('fileAccess')
+            elif func_code.lower() == 'download':
+                detected_access_types.append('download')
+
+            # ENHANCED: Check for CEH-specific patterns
+            is_ceh_datastore = 'datastore/eidchub' in url or 'eidc/download' in url
+            is_zip_file = url.endswith('.zip')
+            is_download = 'download' in func_code.lower() or 'download' in name.lower()
+            is_file_access = 'fileaccess' in func_code.lower()
+            is_landing = 'information' in func_code.lower() or 'landing' in url or 'documents/' in url
+
+            # Prioritize download URLs (both download and fileAccess point to data)
+            if is_download or is_file_access or is_ceh_datastore or is_zip_file:
+                priority = 0
+                if (is_download or is_file_access) and is_ceh_datastore:
+                    priority = 3  # Highest: explicit function + CEH datastore
+                elif is_ceh_datastore:
+                    priority = 2  # High: CEH datastore
+                elif is_download or is_file_access:
+                    priority = 1  # Medium: explicit function
+                download_candidates.append((priority, url, func_code.lower()))
+
+            # Track landing pages
+            if is_landing or ('catalogue.ceh.ac.uk/documents/' in url):
+                landing_candidates.append(url)
+
+        # Determine access type from detected types
+        if 'fileAccess' in detected_access_types:
+            access_type = 'fileAccess'
+        elif 'download' in detected_access_types:
+            access_type = 'download'
+
+        # Select best download URL (highest priority)
+        if download_candidates:
+            download_candidates.sort(key=lambda x: x[0], reverse=True)
+            download_url = download_candidates[0][1]
+            # Also check if the best candidate is fileAccess
+            top_func = download_candidates[0][2] if len(download_candidates[0]) > 2 else ""
+            if top_func == 'fileaccess':
+                access_type = 'fileAccess'
+
+        # Select landing page
+        if landing_candidates:
+            landing_page_url = landing_candidates[0]
+
+        # FALLBACK: If no download URL found, check for fileIdentifier to construct CEH URL
+        if not download_url:
+            file_id_xpath = './/gmd:fileIdentifier/gco:CharacterString'
+            file_ids = root.xpath(file_id_xpath, namespaces=self.namespaces)
+            if file_ids and file_ids[0].text:
+                file_id = file_ids[0].text.strip()
+                # Construct potential CEH datastore URL
+                download_url = f"https://catalogue.ceh.ac.uk/datastore/eidchub/{file_id}"
+                # Note: constructed URLs could be either type - default to download
+
+        # If no explicit landing page, use download URL if it's not a direct file
+        if not landing_page_url and download_url and not download_url.endswith('.zip'):
+            landing_page_url = download_url
+
+        return download_url, landing_page_url, access_type
 
     def __repr__(self) -> str:
         """Return string representation of the extractor."""

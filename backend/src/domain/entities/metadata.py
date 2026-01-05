@@ -104,6 +104,24 @@ class BoundingBox:
 
 
 @dataclass
+class MetadataRelationship:
+    """
+    Relationship between metadata documents.
+
+    Attributes:
+        relation: Relationship predicate/URI
+        target: Target identifier or URL
+        target_id: Parsed UUID if available
+        target_url: Parsed URL if available
+    """
+
+    relation: str
+    target: str
+    target_id: str = ""
+    target_url: str = ""
+
+
+@dataclass
 class Metadata:
     """
     ISO 19115 Metadata entity representing geospatial dataset metadata.
@@ -125,6 +143,7 @@ class Metadata:
         metadata_date: Date when metadata was created/updated
         dataset_language: Language of the dataset (ISO 639-2 code)
         topic_category: ISO 19115 topic category (e.g., 'environment', 'climatology')
+        relationships: Related metadata targets derived from JSON relationships
 
     Business Rules:
         - Title and abstract are mandatory for ISO 19115 compliance
@@ -144,6 +163,14 @@ class Metadata:
     metadata_date: datetime = field(default_factory=datetime.utcnow)
     dataset_language: str = "eng"  # Default to English (ISO 639-2 code)
     topic_category: str = ""
+    download_url: str = ""  # Direct download link for the dataset
+    landing_page_url: str = ""  # URL of the dataset landing page (for supporting docs)
+    # Access type: "download" (ZIP file) or "fileAccess" (web-accessible folder)
+    # PDF requirement: "Datasets can be accessed using the download option... Other datasets 
+    # can be accessed using the fileAccess option. These datasets are typically available 
+    # through a web-accessible folder and require different handling."
+    access_type: str = "download"
+    relationships: List[MetadataRelationship] = field(default_factory=list)
 
     def __post_init__(self):
         """Validate metadata invariants after initialization."""

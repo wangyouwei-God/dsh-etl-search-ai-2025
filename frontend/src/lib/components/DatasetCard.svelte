@@ -1,54 +1,78 @@
 <script lang="ts">
-	import type { SearchResult } from '$lib/types';
-	import { MapPin, Calendar, Tag, TrendingUp } from 'lucide-svelte';
-	import { truncate, formatScore } from '$lib/utils';
+    import type { SearchResult, Dataset } from '$lib/types';
+    import { MapPin, Calendar, ArrowRight } from 'lucide-svelte';
+    import { truncate } from '$lib/utils';
+    import { createEventDispatcher } from 'svelte';
 
-	export let dataset: SearchResult;
+    export let dataset: SearchResult;
+    
+    const dispatch = createEventDispatcher<{ open: Dataset }>();
+
+    function formatScore(score: number): string {
+        return `${(score * 100).toFixed(0)}%`;
+    }
+
+    function handleClick() {
+        dispatch('open', dataset as unknown as Dataset);
+    }
 </script>
 
-<div class="bg-white border border-border rounded-lg p-6 hover:shadow-lg transition-shadow duration-200">
-	<div class="flex justify-between items-start mb-3">
-		<h3 class="text-xl font-semibold text-foreground pr-4">{dataset.title}</h3>
-		<div class="flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
-			<TrendingUp class="w-4 h-4" />
-			{formatScore(dataset.score)}
-		</div>
-	</div>
+<button 
+    type="button"
+    class="card-elevated p-5 cursor-pointer group text-left w-full"
+    on:click={handleClick}
+    aria-label={`Open dataset ${dataset.title}`}
+>
+    <div class="flex items-start justify-between gap-4 mb-3">
+        <!-- Title -->
+        <h3 class="text-base font-semibold text-foreground leading-snug group-hover:text-primary transition-colors">
+            {dataset.title}
+        </h3>
+        
+        <!-- Score -->
+        <div class="score-indicator shrink-0">
+            {formatScore(dataset.score)} match
+        </div>
+    </div>
 
-	<p class="text-muted-foreground mb-4 leading-relaxed">
-		{truncate(dataset.abstract, 250)}
-	</p>
+    <!-- Abstract -->
+    <p class="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-4">
+        {truncate(dataset.abstract, 200)}
+    </p>
 
-	<div class="flex flex-wrap gap-3 mb-4">
-		{#if dataset.keywords && dataset.keywords.length > 0}
-			<div class="flex items-center gap-1 text-sm text-muted-foreground">
-				<Tag class="w-4 h-4" />
-				<span>{dataset.keywords.join(', ')}</span>
-			</div>
-		{/if}
+    <!-- Keywords -->
+    {#if dataset.keywords && dataset.keywords.length > 0}
+        <div class="flex flex-wrap gap-1.5 mb-4">
+            {#each dataset.keywords.slice(0, 5) as keyword}
+                <span class="badge">{keyword}</span>
+            {/each}
+            {#if dataset.keywords.length > 5}
+                <span class="badge">+{dataset.keywords.length - 5}</span>
+            {/if}
+        </div>
+    {/if}
 
-		{#if dataset.has_geo_extent && dataset.center_lat && dataset.center_lon}
-			<div class="flex items-center gap-1 text-sm text-muted-foreground">
-				<MapPin class="w-4 h-4" />
-				<span>{dataset.center_lat.toFixed(2)}°N, {dataset.center_lon.toFixed(2)}°E</span>
-			</div>
-		{/if}
-
-		{#if dataset.has_temporal_extent}
-			<div class="flex items-center gap-1 text-sm text-muted-foreground">
-				<Calendar class="w-4 h-4" />
-				<span>Temporal data</span>
-			</div>
-		{/if}
-	</div>
-
-	<a
-		href="/datasets/{dataset.id}"
-		class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium
-			text-primary-foreground bg-primary rounded-md hover:bg-primary/90
-			focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
-			transition-colors duration-200"
-	>
-		View Details
-	</a>
-</div>
+    <!-- Metadata Row -->
+    <div class="flex items-center justify-between pt-3 border-t border-border">
+        <div class="flex items-center gap-4 text-xs text-muted-foreground">
+            {#if dataset.has_geo_extent && dataset.center_lat && dataset.center_lon}
+                <div class="flex items-center gap-1.5">
+                    <MapPin class="w-3.5 h-3.5" />
+                    <span>{dataset.center_lat.toFixed(1)}°N, {dataset.center_lon.toFixed(1)}°W</span>
+                </div>
+            {/if}
+            
+            {#if dataset.has_temporal_extent}
+                <div class="flex items-center gap-1.5">
+                    <Calendar class="w-3.5 h-3.5" />
+                    <span>Temporal data</span>
+                </div>
+            {/if}
+        </div>
+        
+        <div class="flex items-center gap-1 text-xs font-medium text-primary">
+            View details
+            <ArrowRight class="w-3.5 h-3.5" />
+        </div>
+    </div>
+</button>

@@ -11,7 +11,7 @@ Author: University of Manchester RSE Team
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, List
 import sys
 import os
 
@@ -20,6 +20,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
 
 from domain.entities.metadata import Metadata
+from domain.entities.resource import Resource
 
 
 class IMetadataExtractor(ABC):
@@ -48,57 +49,36 @@ class IMetadataExtractor(ABC):
         """
         Extract metadata from a source file.
 
-        This method reads a metadata file from the given path and converts it
-        into a standardized Metadata domain entity. The implementation details
-        (parsing, validation, transformation) are format-specific and handled
-        by concrete classes.
-
         Args:
             source_path: Path to the metadata file to extract.
-                        Can be a local file path or potentially a URL.
 
         Returns:
-            Metadata: A validated Metadata domain entity containing the extracted
-                     information conforming to ISO 19115 structure.
-
-        Raises:
-            FileNotFoundError: If the source file does not exist
-            ValueError: If the metadata format is invalid or cannot be parsed
-            MetadataValidationError: If extracted data fails ISO 19115 validation
-
-        Example:
-            >>> extractor = JSONExtractor()
-            >>> metadata = extractor.extract('/path/to/metadata.json')
-            >>> print(metadata.title)
-            'Climate Dataset 2023'
-
-        Note:
-            Implementations should delegate validation to domain services
-            (e.g., ISO19115Validator) to maintain separation of concerns.
+            Metadata: A validated Metadata domain entity.
         """
         pass
+
+    def extract_resources(self, source_path: str) -> List[Resource]:
+        """
+        Extract distribution resources (files, APIs) from the metadata.
+        
+        Args:
+            source_path: Path to the metadata file.
+            
+        Returns:
+            List[Resource]: List of discoverable resources.
+        """
+        return []
 
     @abstractmethod
     def can_extract(self, source_path: str) -> bool:
         """
         Check if this extractor can handle the given source file.
 
-        This method allows the extractor to determine if it's the appropriate
-        handler for a given file, typically by checking the file extension,
-        MIME type, or file content.
-
         Args:
             source_path: Path to the metadata file to check
 
         Returns:
             bool: True if this extractor can handle the file, False otherwise
-
-        Example:
-            >>> json_extractor = JSONExtractor()
-            >>> json_extractor.can_extract('metadata.json')
-            True
-            >>> json_extractor.can_extract('metadata.xml')
-            False
         """
         pass
 
@@ -108,10 +88,6 @@ class IMetadataExtractor(ABC):
 
         Returns:
             str: Format name (e.g., 'JSON', 'XML', 'CSV')
-
-        Note:
-            This is a concrete method with a default implementation.
-            Subclasses can override if needed.
         """
         return self.__class__.__name__.replace('Extractor', '')
 

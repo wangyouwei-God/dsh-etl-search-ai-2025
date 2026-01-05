@@ -304,6 +304,85 @@ class PDFProcessor(IDocumentProcessor):
             )
 
 
+class DOCXProcessor(IDocumentProcessor):
+    """Processor for DOCX files using python-docx library."""
+    
+    SUPPORTED_EXTENSIONS = {'.docx', '.doc'}
+    
+    def __init__(self, chunk_size: int = 500, chunk_overlap: int = 50):
+        self.chunker = TextChunker(chunk_size, chunk_overlap)
+        self._docx_available = self._check_docx()
+    
+    def _check_docx(self) -> bool:
+        """Check if python-docx is available."""
+        try:
+            import docx
+            return True
+        except ImportError:
+            logger.warning("python-docx not installed. DOCX processing will be limited.")
+            return False
+    
+    def can_process(self, file_path: str) -> bool:
+        ext = Path(file_path).suffix.lower()
+        return ext in self.SUPPORTED_EXTENSIONS and self._docx_available
+    
+    def extract_text(self, file_path: str) -> str:
+        """Extract text from DOCX using python-docx."""
+        if not self._docx_available:
+            raise RuntimeError("python-docx not available for DOCX processing")
+        
+        import docx
+        
+        try:
+            doc = docx.Document(file_path)
+            text_parts = []
+            
+            # Extract text from paragraphs
+            for para in doc.paragraphs:
+                if para.text.strip():
+                    text_parts.append(para.text.strip())
+            
+            # Extract text from tables
+            for table in doc.tables:
+                for row in table.rows:
+                    row_text = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+                    if row_text:
+                        text_parts.append(' | '.join(row_text))
+            
+            return '\n'.join(text_parts)
+        except Exception as e:
+            logger.error(f"Failed to extract DOCX {file_path}: {e}")
+            raise
+    
+    def process(self, file_path: str, title: str = None) -> ProcessedDocument:
+        """Process DOCX file into chunks."""
+        doc_id = str(uuid4())
+        doc_title = title or Path(file_path).stem.replace('_', ' ').replace('-', ' ').title()
+        
+        try:
+            text = self.extract_text(file_path)
+            chunks = self.chunker.chunk(text, doc_id, doc_title)
+            
+            logger.info(f"Processed DOCX: {doc_title} - {len(text)} chars, {len(chunks)} chunks")
+            
+            return ProcessedDocument(
+                id=doc_id,
+                title=doc_title,
+                source_path=file_path,
+                total_chars=len(text),
+                chunks=chunks
+            )
+        except Exception as e:
+            return ProcessedDocument(
+                id=doc_id,
+                title=doc_title,
+                source_path=file_path,
+                total_chars=0,
+                chunks=[],
+                processing_error=str(e)
+            )
+
+
 class DocumentProcessorFactory:
     """Factory for creating appropriate document processors."""
     
@@ -311,6 +390,7 @@ class DocumentProcessorFactory:
         self.processors = [
             TextFileProcessor(chunk_size, chunk_overlap),
             PDFProcessor(chunk_size, chunk_overlap),
+            DOCXProcessor(chunk_size, chunk_overlap),
         ]
     
     def get_processor(self, file_path: str) -> Optional[IDocumentProcessor]:

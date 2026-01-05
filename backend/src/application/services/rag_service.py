@@ -105,8 +105,10 @@ class RAGService:
         embedding_service: IEmbeddingService,
         vector_repository: IVectorRepository,
         gemini_service: GeminiService,
+        supporting_docs_repository: Optional[IVectorRepository] = None,
         top_k: int = 5,
-        min_relevance_score: float = 0.3
+        min_relevance_score: float = 0.3,
+        doc_top_k: int = 5
     ):
         """
         Initialize RAG service.
@@ -120,9 +122,11 @@ class RAGService:
         """
         self.embedding_service = embedding_service
         self.vector_repository = vector_repository
+        self.supporting_docs_repository = supporting_docs_repository
         self.gemini_service = gemini_service
         self.top_k = top_k
         self.min_relevance_score = min_relevance_score
+        self.doc_top_k = doc_top_k
         
         # Store active conversations
         self.conversations: Dict[str, Conversation] = {}
@@ -146,25 +150,48 @@ class RAGService:
         query_embedding = self.embedding_service.generate_embedding(query)
         
         # Search vector database
-        results = self.vector_repository.search(
+        dataset_results = self.vector_repository.search(
             query_vector=query_embedding,
             limit=self.top_k
         )
-        
-        # Convert to RAGContext objects
-        contexts = []
-        for result in results:
+
+        contexts: List[RAGContext] = []
+        for result in dataset_results:
             if result.score >= self.min_relevance_score:
-                context = RAGContext(
-                    source_id=result.id,
-                    source_type=result.metadata.get("type", "dataset"),
-                    title=result.metadata.get("title", "Unknown"),
-                    content=result.metadata.get("abstract", ""),
-                    relevance_score=result.score,
-                    metadata=result.metadata
+                contexts.append(
+                    RAGContext(
+                        source_id=result.id,
+                        source_type=result.metadata.get("type", "dataset"),
+                        title=result.metadata.get("title", "Unknown"),
+                        content=result.metadata.get("abstract", ""),
+                        relevance_score=result.score,
+                        metadata=result.metadata
+                    )
                 )
-                contexts.append(context)
-        
+
+        if self.supporting_docs_repository:
+            doc_results = self.supporting_docs_repository.search(
+                query_vector=query_embedding,
+                limit=self.doc_top_k
+            )
+            for result in doc_results:
+                if result.score >= self.min_relevance_score:
+                    contexts.append(
+                        RAGContext(
+                            source_id=result.id,
+                            source_type=result.metadata.get("type", "document"),
+                            title=result.metadata.get("title", "Unknown"),
+                            content=result.metadata.get("abstract", ""),
+                            relevance_score=result.score,
+                            metadata=result.metadata
+                        )
+                    )
+
+        if contexts:
+            contexts.sort(key=lambda c: c.relevance_score, reverse=True)
+            max_contexts = self.top_k + (self.doc_top_k if self.supporting_docs_repository else 0)
+            contexts = contexts[:max_contexts]
+
         logger.debug(f"Retrieved {len(contexts)} relevant contexts for query")
         return contexts
     
@@ -205,6 +232,27 @@ Content:
             for i, ctx in enumerate(contexts, 1)
         ]
         return "\n\n**Sources:**\n" + "\n".join(sources)
+
+    def _fallback_answer(self, query: str, contexts: List[RAGContext]) -> str:
+        """
+        Generate a deterministic fallback response when the LLM is unavailable.
+        """
+        if not contexts:
+            return (
+                "I could not generate a model response and found no relevant datasets. "
+                "Please refine your query with more specific terms."
+            )
+
+        lines = [
+            "The language model is unavailable. Here are relevant datasets based on semantic search:"
+        ]
+        for ctx in contexts[:5]:
+            lines.append(f"- {ctx.title} (score: {ctx.relevance_score:.2f})")
+
+        lines.append(
+            "You can ask for details about any of these datasets or refine the query."
+        )
+        return "\n".join(lines)
     
     def query(self, query: str, include_sources: bool = True) -> RAGResponse:
         """
@@ -236,7 +284,7 @@ Content:
                 
         except GeminiError as e:
             logger.error(f"LLM generation failed: {e}")
-            answer = f"I apologize, but I encountered an error generating a response: {str(e)}"
+            answer = self._fallback_answer(query, contexts)
         
         processing_time = (time.time() - start_time) * 1000
         
@@ -297,7 +345,7 @@ Content:
                 
         except GeminiError as e:
             logger.error(f"LLM chat failed: {e}")
-            answer = f"I apologize, but I encountered an error: {str(e)}"
+            answer = self._fallback_answer(message, contexts)
         
         # Add assistant response to conversation
         conversation.add_turn("assistant", answer, contexts)

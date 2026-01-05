@@ -22,6 +22,8 @@ from application.interfaces.metadata_extractor import (
 )
 from infrastructure.etl.extractors.json_extractor import JSONExtractor
 from infrastructure.etl.extractors.xml_extractor import XMLExtractor
+from infrastructure.etl.extractors.jsonld_extractor import JSONLDExtractor
+from infrastructure.etl.extractors.rdf_extractor import RDFExtractor
 
 
 class ExtractorFactory:
@@ -63,13 +65,18 @@ class ExtractorFactory:
         # Registry of available extractors
         self._extractors = {
             'json': JSONExtractor,
-            'xml': XMLExtractor
+            'xml': XMLExtractor,
+            'jsonld': JSONLDExtractor,
+            'rdf': RDFExtractor
         }
 
         # File extension to format mapping
         self._extension_map = {
             '.json': 'json',
-            '.xml': 'xml'
+            '.xml': 'xml',
+            '.jsonld': 'jsonld',
+            '.ttl': 'rdf',
+            '.turtle': 'rdf'
         }
 
     def create_extractor(self, file_path: str) -> IMetadataExtractor:

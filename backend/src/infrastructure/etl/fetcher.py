@@ -62,9 +62,9 @@ class MetadataFetcher:
     CATALOGUE_PATTERNS = {
         'ceh': {
             'base_url': 'https://catalogue.ceh.ac.uk/id/{uuid}',
-            'json_url': 'https://catalogue.ceh.ac.uk/id/{uuid}.json',
-            'xml_url': 'https://catalogue.ceh.ac.uk/id/{uuid}.xml',
-            'gemini_xml_url': 'https://catalogue.ceh.ac.uk/id/{uuid}/gemini.xml',
+            # Direct JSON/XML endpoints are deprecated/redirected on CEH
+            # We rely on Content Negotiation on the base_url
+            'gemini_xml_url': 'https://catalogue.ceh.ac.uk/documents/gemini/waf/{uuid}.xml',
         },
         # Can add more catalogues here
         'ceda': {
@@ -163,8 +163,16 @@ class MetadataFetcher:
                 # Create temporary file
                 temp_file = self._create_temp_file(uuid, format_type)
 
+                # Prepare headers for Content Negotiation
+                headers = {}
+                if 'catalogue.ceh.ac.uk/id/' in url:
+                    if format_type == 'json':
+                        headers['Accept'] = 'application/json'
+                    elif format_type == 'xml':
+                        headers['Accept'] = 'application/xml'
+
                 # Download file
-                downloaded_path = self.client.download_file(url, temp_file)
+                downloaded_path = self.client.download_file(url, temp_file, headers=headers)
 
                 # Verify file has content
                 if not self._verify_file(downloaded_path):
@@ -244,30 +252,30 @@ class MetadataFetcher:
         patterns = self.CATALOGUE_PATTERNS[self.catalogue]
         urls = []
 
-        # If preferred format specified, try that first
-        if preferred_format == 'json' and 'json_url' in patterns:
-            urls.append((patterns['json_url'].format(uuid=uuid), 'json'))
-        elif preferred_format == 'xml' and 'xml_url' in patterns:
-            urls.append((patterns['xml_url'].format(uuid=uuid), 'xml'))
+        # Strategy 1: Content Negotiation via Base URL (Modern Way)
+        if 'base_url' in patterns:
+            base_url = patterns['base_url'].format(uuid=uuid)
+            
+            # If preferred format specified, try that first
+            if preferred_format == 'json':
+                urls.append((base_url, 'json'))
+            elif preferred_format == 'xml':
+                urls.append((base_url, 'xml'))
+            else:
+                # Default order: JSON first (lighter), then XML
+                urls.append((base_url, 'json'))
+                urls.append((base_url, 'xml'))
 
-        # Try JSON (usually faster to parse)
-        if 'json_url' in patterns and preferred_format != 'json':
-            urls.append((patterns['json_url'].format(uuid=uuid), 'json'))
-
-        # Try standard XML
-        if 'xml_url' in patterns and preferred_format != 'xml':
-            urls.append((patterns['xml_url'].format(uuid=uuid), 'xml'))
-
-        # Try catalogue-specific formats
+        # Strategy 2: WAF (Web Accessible Folder) - specific to CEH Gemini XML
         if 'gemini_xml_url' in patterns:
+            # WAF usually holds the definitive XML record
             urls.append((patterns['gemini_xml_url'].format(uuid=uuid), 'xml'))
 
-        # Fallback to base URL with content negotiation
-        if 'base_url' in patterns:
-            # Try with JSON header
-            urls.append((patterns['base_url'].format(uuid=uuid), 'json'))
-            # Try with XML header
-            urls.append((patterns['base_url'].format(uuid=uuid), 'xml'))
+        # Legacy fallback (only if patterns explicitly define them)
+        if 'json_url' in patterns and preferred_format != 'xml':
+             urls.append((patterns['json_url'].format(uuid=uuid), 'json'))
+        if 'xml_url' in patterns and preferred_format != 'json':
+             urls.append((patterns['xml_url'].format(uuid=uuid), 'xml'))
 
         return urls
 

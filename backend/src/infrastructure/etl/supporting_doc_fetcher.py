@@ -51,14 +51,15 @@ class SupportingDocFetcher:
     Fetcher for supporting documents associated with datasets.
     
     This class provides the capability to:
-    - Discover supporting documents from dataset landing pages
-    - Download PDFs and other documents
-    - Extract document metadata
+    - Download supporting documents ZIP directly from CEH data-package URL
+    - Extract and process PDFs, DOCX, and other documents
+    - Fall back to HTML page crawling if ZIP not available
     - Store documents locally with proper organization
     
     CEH Catalogue URL patterns:
     - Landing page: https://catalogue.ceh.ac.uk/documents/{uuid}
-    - Supporting docs: linked from the landing page
+    - Supporting docs ZIP: https://data-package.ceh.ac.uk/sd/{uuid}.zip
+      (Contains: readme.html, ro-crate-metadata.json, supporting-documents/*.docx)
     """
     
     # Document type patterns for classification
@@ -70,11 +71,14 @@ class SupportingDocFetcher:
         'readme': r'readme|read.?me',
     }
     
-    # Supported file extensions
+    # Supported file extensions for document processing
     SUPPORTED_EXTENSIONS = {'.pdf', '.doc', '.docx', '.txt', '.csv', '.xlsx'}
     
     # CEH catalogue base URL
     CEH_BASE_URL = "https://catalogue.ceh.ac.uk"
+    
+    # CEH supporting documents ZIP URL pattern (PRIMARY SOURCE)
+    CEH_SUPPORTING_DOCS_URL = "https://data-package.ceh.ac.uk/sd/{uuid}.zip"
     
     def __init__(
         self,
@@ -132,6 +136,119 @@ class SupportingDocFetcher:
         
         return filename
     
+    def download_supporting_zip(self, dataset_id: str) -> List[SupportingDocumentInfo]:
+        """
+        Download supporting documents ZIP directly from CEH data-package URL.
+        
+        This is the PRIMARY method for getting supporting documents.
+        CEH provides them as a ZIP at: https://data-package.ceh.ac.uk/sd/{uuid}.zip
+        
+        The ZIP typically contains:
+        - readme.html
+        - ro-crate-metadata.json
+        - supporting-documents/*.docx (or .pdf, etc.)
+        
+        Args:
+            dataset_id: Dataset UUID
+            
+        Returns:
+            List of SupportingDocumentInfo for extracted documents
+        """
+        import zipfile
+        import io
+        
+        zip_url = self.CEH_SUPPORTING_DOCS_URL.format(uuid=dataset_id)
+        logger.info(f"Downloading supporting docs ZIP: {zip_url}")
+        
+        try:
+            # Download ZIP file
+            response = self.session.get(zip_url, timeout=self.timeout, stream=True)
+            response.raise_for_status()
+            
+            # Check content type
+            content_type = response.headers.get('content-type', '')
+            if 'html' in content_type.lower():
+                logger.warning(f"Got HTML instead of ZIP for {dataset_id}, falling back to HTML crawling")
+                return []
+            
+            # Read ZIP content
+            zip_content = response.content
+            if len(zip_content) == 0:
+                logger.warning(f"Empty ZIP file for {dataset_id}")
+                return []
+            
+            logger.info(f"Downloaded ZIP: {len(zip_content) / 1024:.1f}KB")
+            
+            # Create dataset directory
+            dataset_dir = self._get_download_path(dataset_id)
+            dataset_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Extract ZIP
+            documents = []
+            with zipfile.ZipFile(io.BytesIO(zip_content)) as zf:
+                for file_info in zf.infolist():
+                    filename = file_info.filename
+                    
+                    # Skip directories
+                    if filename.endswith('/'):
+                        continue
+                    
+                    # Get file extension
+                    ext = Path(filename).suffix.lower()
+                    
+                    # Focus on actual documents (PDFs, DOCX, etc.)
+                    # Skip readme.html and ro-crate-metadata.json for RAG
+                    is_document = ext in self.SUPPORTED_EXTENSIONS
+                    is_in_supporting_dir = 'supporting-documents/' in filename or 'supporting_documents/' in filename
+                    
+                    # Extract the file
+                    safe_filename = Path(filename).name  # Get just the filename
+                    if is_in_supporting_dir:
+                        # Create supporting-documents subdirectory
+                        (dataset_dir / 'supporting-documents').mkdir(exist_ok=True)
+                        file_path = dataset_dir / 'supporting-documents' / safe_filename
+                    else:
+                        file_path = dataset_dir / safe_filename
+                    
+                    # Extract file
+                    with zf.open(file_info) as src, open(file_path, 'wb') as dst:
+                        dst.write(src.read())
+                    
+                    file_size = file_path.stat().st_size
+                    logger.debug(f"Extracted: {safe_filename} ({file_size / 1024:.1f}KB)")
+                    
+                    # Only include actual documents (not HTML/JSON metadata)
+                    if is_document or is_in_supporting_dir:
+                        doc_type = self._classify_document_type(safe_filename, safe_filename)
+                        
+                        documents.append(SupportingDocumentInfo(
+                            id=str(uuid4()),
+                            dataset_id=dataset_id,
+                            title=Path(safe_filename).stem.replace('_', ' ').replace('-', ' ').title(),
+                            document_type=doc_type,
+                            url=zip_url,
+                            filename=safe_filename,
+                            file_path=str(file_path),
+                            file_size=file_size,
+                            downloaded_at=datetime.utcnow()
+                        ))
+            
+            logger.info(f"Extracted {len(documents)} supporting documents from ZIP")
+            return documents
+            
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                logger.info(f"No supporting docs ZIP available for {dataset_id} (404)")
+            else:
+                logger.warning(f"HTTP error downloading supporting docs ZIP: {e}")
+            return []
+        except zipfile.BadZipFile as e:
+            logger.warning(f"Invalid ZIP file for {dataset_id}: {e}")
+            return []
+        except Exception as e:
+            logger.warning(f"Failed to download supporting docs ZIP for {dataset_id}: {e}")
+            return []
+    
     def discover_documents(self, dataset_id: str) -> List[SupportingDocumentInfo]:
         """
         Discover supporting documents from a dataset's landing page.
@@ -163,20 +280,33 @@ class SupportingDocFetcher:
             seen_urls = set()
             for link in doc_links:
                 href = link.get('href', '')
-                
+
                 # Skip if no href or already seen
                 if not href or href in seen_urls:
                     continue
-                
+
                 # Make absolute URL
                 if not href.startswith('http'):
                     href = urljoin(landing_url, href)
-                
+
                 # Check if it's a document link
                 ext = Path(urlparse(href).path).suffix.lower()
                 if ext not in self.SUPPORTED_EXTENSIONS and 'download' not in href.lower():
                     continue
-                
+
+                # ENHANCEMENT: Skip data ZIPs (these should be handled by ZipExtractor)
+                # Data ZIPs typically have specific patterns
+                if ext == '.zip':
+                    # Skip if it's a CEH datastore link (data archive)
+                    if 'datastore/eidchub' in href or 'eidc/download' in href:
+                        logger.debug(f"Skipping data ZIP (datastore): {href}")
+                        continue
+                    # Skip if the title/text suggests it's raw data
+                    link_text = link.text_content().strip().lower() if link.text_content() else ''
+                    if any(keyword in link_text for keyword in ['download data', 'get data', 'dataset', 'raw data']):
+                        logger.debug(f"Skipping data ZIP (content match): {href}")
+                        continue
+
                 seen_urls.add(href)
                 
                 # Get title from link text or title attribute
@@ -281,7 +411,11 @@ class SupportingDocFetcher:
         max_docs: int = 5
     ) -> List[SupportingDocumentInfo]:
         """
-        Discover and download all supporting documents for a dataset.
+        Fetch all supporting documents for a dataset.
+        
+        Strategy (in order of priority):
+        1. Download ZIP directly from data-package.ceh.ac.uk/sd/{uuid}.zip (PRIMARY)
+        2. Fall back to HTML page crawling if ZIP not available
         
         Args:
             dataset_id: Dataset UUID
@@ -290,7 +424,18 @@ class SupportingDocFetcher:
         Returns:
             List of downloaded SupportingDocumentInfo
         """
-        # Discover documents
+        # PRIMARY: Try to download supporting docs ZIP directly
+        logger.info(f"Attempting to fetch supporting documents for: {dataset_id}")
+        
+        documents = self.download_supporting_zip(dataset_id)
+        
+        if documents:
+            logger.info(f"Successfully downloaded {len(documents)} documents from ZIP")
+            return documents[:max_docs]
+        
+        # FALLBACK: Try HTML page crawling
+        logger.info(f"ZIP not available, falling back to HTML crawling for {dataset_id}")
+        
         discovered = self.discover_documents(dataset_id)
         
         if not discovered:
@@ -306,7 +451,7 @@ class SupportingDocFetcher:
             except DocumentFetchError as e:
                 logger.warning(f"Failed to download {doc_info.title}: {e}")
         
-        logger.info(f"Downloaded {len(downloaded)}/{len(discovered)} documents")
+        logger.info(f"Downloaded {len(downloaded)}/{len(discovered)} documents via HTML crawling")
         return downloaded
     
     def close(self):

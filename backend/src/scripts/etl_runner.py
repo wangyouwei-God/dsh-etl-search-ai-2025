@@ -30,7 +30,8 @@ import logging
 import sys
 import os
 from pathlib import Path
-from typing import Optional
+from datetime import datetime
+from typing import List, Optional
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -47,6 +48,11 @@ from infrastructure.services.embedding_service import HuggingFaceEmbeddingServic
 from infrastructure.persistence.vector.chroma_repository import ChromaVectorRepository
 from application.interfaces.embedding_service import EmbeddingError
 from domain.repositories.vector_repository import VectorRepositoryError
+from infrastructure.etl.zip_extractor import ZipExtractor, ExtractedFile
+from infrastructure.etl.supporting_doc_fetcher import SupportingDocFetcher
+from infrastructure.etl.file_access_fetcher import FileAccessFetcher
+from application.services.document_processor import DocumentProcessorFactory
+from domain.entities.data_file import DataFile, SupportingDocument
 
 
 # Configure logging
@@ -84,7 +90,11 @@ class ETLRunner:
         db_path: Optional[str] = None,
         save_to_db: bool = True,
         enable_vector_search: bool = True,
-        vector_db_path: Optional[str] = None
+        vector_db_path: Optional[str] = None,
+        download_fileaccess: bool = False,
+        fileaccess_max_files: int = 200,
+        fileaccess_max_depth: int = 1,
+        fileaccess_max_size_mb: int = 500
     ):
         """
         Initialize the ETL runner.
@@ -103,6 +113,10 @@ class ETLRunner:
         self.strict_mode = strict_mode
         self.save_to_db = save_to_db
         self.enable_vector_search = enable_vector_search
+        self.download_fileaccess = download_fileaccess
+        self.fileaccess_max_files = fileaccess_max_files
+        self.fileaccess_max_depth = fileaccess_max_depth
+        self.fileaccess_max_size_mb = fileaccess_max_size_mb
 
         # Create services
         self.fetcher = MetadataFetcher(
@@ -111,6 +125,12 @@ class ETLRunner:
             max_retries=max_retries
         )
         self.factory = ExtractorFactory(strict_mode=strict_mode)
+        
+        # Initialize file processors
+        self.zip_extractor = ZipExtractor(overwrite=True)  # Overwrite for idempotency
+        self.doc_fetcher = SupportingDocFetcher()
+        self.file_access_fetcher = FileAccessFetcher(max_size_mb=fileaccess_max_size_mb)
+        self.doc_processor_factory = DocumentProcessorFactory()
 
         # Initialize database if persistence is enabled
         self.db = None
@@ -220,17 +240,59 @@ class ETLRunner:
             logger.info("Step 5: Saving to database...")
             try:
                 # Create dataset entity
+                # BUGFIX: Use CEH's original UUID to ensure data_files foreign key integrity
+                from uuid import UUID
                 dataset = Dataset(
+                    id=UUID(uuid),  # Use the original CEH UUID
                     title=metadata.title,
                     abstract=metadata.abstract,
                     metadata_url=file_path
                 )
 
-                # Save to database
+                # Read raw document content (TASK REQUIREMENT)
+                # PDF p.3: "store the entire document in a field in the database"
+                raw_document = None
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        raw_document = f.read()
+                    logger.debug(f"Read raw document: {len(raw_document)} characters")
+                except Exception as e:
+                    logger.warning(f"Failed to read raw document: {e}")
+
+                # Process data files (Phase 1.5)
+                data_files = []
+                if metadata.download_url:
+                    logger.info("Step 5.1: Processing data files...")
+                    try:
+                        data_files = self._process_data_files(metadata, uuid)
+                        logger.info(f"✓ Processed {len(data_files)} data files")
+                    except Exception as e:
+                        logger.error(f"✗ Failed to process data files: {str(e)}")
+
+                # Process supporting documents (Phase 1.5)
+                supporting_docs = []
+                if metadata.landing_page_url:
+                    logger.info("Step 5.2: Processing supporting documents...")
+                    try:
+                        supporting_docs = self._process_supporting_documents(metadata, uuid)
+                        logger.info(f"✓ Processed {len(supporting_docs)} supporting documents")
+                    except Exception as e:
+                        logger.error(f"✗ Failed to process supporting documents: {str(e)}")
+
+                # Save to database with raw document and files
                 with self.db.session_scope() as session:
                     repository = SQLiteDatasetRepository(session)
-                    dataset_id = repository.save(dataset, metadata)
+                    dataset_id = repository.save(
+                        dataset,
+                        metadata,
+                        data_files=data_files,
+                        supporting_documents=supporting_docs,
+                        raw_document=raw_document,
+                        document_format=format_type
+                    )
                     logger.info(f"✓ Saved to database with ID: {dataset_id}")
+                    if raw_document:
+                        logger.info(f"✓ Stored raw {format_type} document ({len(raw_document)} chars)")
 
             except RepositoryError as e:
                 logger.error(f"✗ Failed to save to database: {str(e)}")
@@ -256,6 +318,7 @@ class ETLRunner:
                     "contact_email": metadata.contact_email or "",
                     "dataset_language": metadata.dataset_language or "eng",
                     "keywords": str(metadata.keywords),
+                    "type": "dataset",
                 }
 
                 # Add geographic/temporal info if available
@@ -297,10 +360,160 @@ class ETLRunner:
 
         return metadata
 
+    def _process_data_files(self, metadata: Metadata, dataset_id: str) -> list[DataFile]:
+        """Download and process data files."""
+        if metadata.access_type == "fileAccess":
+            folder_url = metadata.download_url or metadata.landing_page_url
+            if not folder_url:
+                logger.info("fileAccess dataset detected but no folder URL available")
+                return []
+
+            logger.info("fileAccess dataset detected; crawling folder listing for data files")
+            file_infos = self.file_access_fetcher.list_files(
+                folder_url,
+                max_files=self.fileaccess_max_files,
+                max_depth=self.fileaccess_max_depth
+            )
+            logger.info(f"Discovered {len(file_infos)} fileAccess data files")
+
+            if self.download_fileaccess and file_infos:
+                logger.info("Downloading fileAccess data files")
+                file_infos = self.file_access_fetcher.download_files(
+                    file_infos,
+                    dataset_id=dataset_id,
+                    max_files=self.fileaccess_max_files
+                )
+
+            data_files = []
+            for info in file_infos:
+                df = DataFile(
+                    dataset_id=dataset_id,
+                    filename=info.filename,
+                    file_path=info.local_path or info.url,
+                    file_size=info.file_size,
+                    file_format=info.file_format,
+                    downloaded_at=info.downloaded_at
+                )
+                data_files.append(df)
+
+            return data_files
+
+        # Determine best URL for data files
+        # Priority: landing_page_url if it's a ZIP file, otherwise download_url
+        zip_url = None
+        if metadata.landing_page_url and metadata.landing_page_url.endswith('.zip'):
+            zip_url = metadata.landing_page_url
+        elif metadata.download_url:
+            zip_url = metadata.download_url
+
+        if not zip_url:
+            return []
+
+        # Download and extract ZIP
+        zip_info = self.zip_extractor.extract_from_url(
+            zip_url,
+            dataset_id=dataset_id
+        )
+
+        # Convert to domain entities
+        data_files = []
+        for extracted in zip_info.extracted_files:
+            df = DataFile(
+                dataset_id=dataset_id,
+                filename=extracted.filename,
+                file_path=extracted.file_path,
+                file_size=extracted.file_size,
+                file_format=extracted.file_format,
+                downloaded_at=extracted.extracted_at
+            )
+            data_files.append(df)
+        
+        return data_files
+
+    def _process_supporting_documents(self, metadata: Metadata, dataset_id: str) -> list[SupportingDocument]:
+        """Download and process supporting documents."""
+        if not metadata.landing_page_url:
+            return []
+
+        # Fetch documents
+        downloaded_docs = self.doc_fetcher.fetch_all_documents(
+            dataset_id=dataset_id,
+            max_docs=5  # Reasonable limit to avoid overloading
+        )
+
+        # Convert to domain entities and process with RAG processor
+        supporting_docs = []
+        for doc_info in downloaded_docs:
+            # Create entity
+            doc = SupportingDocument(
+                dataset_id=dataset_id,
+                title=doc_info.title or doc_info.filename, # Use title if available
+                document_type=doc_info.document_type,
+                filename=doc_info.filename,
+                file_path=str(doc_info.file_path),
+                file_size=doc_info.file_size,
+                downloaded_at=datetime.utcnow()
+            )
+            
+            # Phase 2.2: Process for RAG (Extract Text)
+            # Only process if it's a PDF or text file
+            if self.doc_processor_factory.can_process(doc.file_path):
+                try:
+                    logger.info(f"Processing document for RAG: {doc.filename}")
+                    processed = self.doc_processor_factory.process(doc.file_path, title=doc.title)
+                    if processed and processed.chunks:
+                        # Concatenate chunk content for storage in SQL (simplified RAG)
+                        # Ideally we store chunks in Vector DB, but storing full text in SQL is a good backup
+                        full_text = "\n\n".join([c.content for c in processed.chunks])
+                        doc.content_text = full_text
+                        doc.is_processed = True
+                        logger.info(f"✓ Extracted {len(full_text)} chars from {doc.filename}")
+                        
+                        # Store chunks in Vector DB if enabled
+                        if self.enable_vector_search and self.vector_repository and self.embedding_service:
+                            try:
+                                logger.info(f"Generating embeddings for {len(processed.chunks)} chunks...")
+                                ids = []
+                                vectors = []
+                                metadatas = []
+                                
+                                for chunk in processed.chunks:
+                                    # Generate embedding
+                                    vector = self.embedding_service.generate_embedding(chunk.content)
+                                    
+                                    ids.append(chunk.id)
+                                    vectors.append(vector)
+                                    # ChromaDB metadata must be flat
+                                    metadatas.append({
+                                        "type": "document",
+                                        "parent_id": dataset_id,
+                                        "filename": doc.filename,
+                                        "title": doc.title,
+                                        "chunk_index": chunk.chunk_index,
+                                        "content": chunk.content[:1000],  # Truncate content in metadata if too long
+                                        "abstract": chunk.content[:1000]  # Map to abstract for search compatibility
+                                    })
+                                
+                                # Batch upsert
+                                self.vector_repository.upsert_vectors_batch(ids, vectors, metadatas)
+                                logger.info(f"✓ Stored {len(ids)} chunks in vector database")
+                                
+                            except Exception as ve:
+                                logger.error(f"Failed to store chunks in vector DB: {ve}")
+
+                except Exception as e:
+                    logger.warning(f"Failed to process document {doc.filename}: {e}")
+
+            supporting_docs.append(doc)
+            
+        return supporting_docs
+
     def close(self):
         """Close resources."""
         if self.fetcher:
             self.fetcher.close()
+        if self.zip_extractor:
+            self.zip_extractor.close()
 
 
 def print_metadata_summary(metadata: Metadata):
@@ -479,6 +692,33 @@ Supported Catalogues:
         help='Path to ChromaDB directory (default: chroma_db)'
     )
 
+    parser.add_argument(
+        '--download-fileaccess',
+        action='store_true',
+        help='Download files for fileAccess datasets (default: list only)'
+    )
+
+    parser.add_argument(
+        '--fileaccess-max-files',
+        type=int,
+        default=200,
+        help='Maximum files to list/download from fileAccess folders (default: 200)'
+    )
+
+    parser.add_argument(
+        '--fileaccess-max-depth',
+        type=int,
+        default=1,
+        help='Recursion depth for fileAccess folder crawling (default: 1)'
+    )
+
+    parser.add_argument(
+        '--fileaccess-max-size-mb',
+        type=int,
+        default=500,
+        help='Max file size for fileAccess downloads (default: 500MB)'
+    )
+
     args = parser.parse_args()
 
     # Configure logging level
@@ -510,7 +750,11 @@ Supported Catalogues:
         db_path=args.db_path,
         save_to_db=not args.no_db,
         enable_vector_search=not args.no_vector_search,
-        vector_db_path=args.vector_db_path
+        vector_db_path=args.vector_db_path,
+        download_fileaccess=args.download_fileaccess,
+        fileaccess_max_files=args.fileaccess_max_files,
+        fileaccess_max_depth=args.fileaccess_max_depth,
+        fileaccess_max_size_mb=args.fileaccess_max_size_mb
     )
 
     try:

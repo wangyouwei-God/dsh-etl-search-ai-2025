@@ -42,6 +42,7 @@ from domain.repositories.vector_repository import VectorRepositoryError
 
 # Import routers
 from api.routers import chat as chat_router
+from api.routers import documents as documents_router
 
 # Configure logging
 logging.basicConfig(
@@ -55,6 +56,7 @@ logger = logging.getLogger(__name__)
 db = None
 embedding_service = None
 vector_repository = None
+supporting_docs_repository = None
 rag_service = None
 
 
@@ -65,7 +67,7 @@ async def lifespan(app: FastAPI):
     
     Initializes services on startup and cleans up on shutdown.
     """
-    global db, embedding_service, vector_repository, rag_service
+    global db, embedding_service, vector_repository, supporting_docs_repository, rag_service
     
     logger.info("Initializing API services...")
     
@@ -84,6 +86,16 @@ async def lifespan(app: FastAPI):
         chroma_path = str(backend_dir / "chroma_db")
         vector_repository = ChromaVectorRepository(chroma_path)
         logger.info(f"✓ Vector repository initialized: {chroma_path}, {vector_repository.count()} vectors")
+
+        # Initialize supporting docs repository
+        supporting_docs_repository = ChromaVectorRepository(
+            persist_directory=chroma_path,
+            collection_name="supporting_docs"
+        )
+        logger.info(
+            f"✓ Supporting docs repository initialized: {chroma_path}, "
+            f"{supporting_docs_repository.count()} vectors"
+        )
         
         # Initialize Gemini and RAG service
         try:
@@ -98,6 +110,7 @@ async def lifespan(app: FastAPI):
                 rag_service = RAGService(
                     embedding_service=embedding_service,
                     vector_repository=vector_repository,
+                    supporting_docs_repository=supporting_docs_repository,
                     gemini_service=gemini_service
                 )
                 # Set RAG service in chat router
@@ -162,6 +175,7 @@ async def root():
 
 # Register routers
 app.include_router(chat_router.router)
+app.include_router(documents_router.router)
 
 
 @app.get("/health", response_model=HealthCheckSchema, tags=["Health"])
@@ -217,6 +231,8 @@ async def search_datasets(
     
     try:
         logger.info(f"Search request: query='{q}', limit={limit}")
+        if not q.strip():
+            raise HTTPException(status_code=422, detail="Search query cannot be empty")
         
         # Generate query embedding
         query_embedding = embedding_service.generate_embedding(q)
@@ -285,6 +301,8 @@ async def search_datasets(
     except VectorRepositoryError as e:
         logger.error(f"Vector search failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
@@ -352,6 +370,8 @@ async def get_dataset(dataset_id: str):
             metadata=metadata_schema
         )
         
+    except HTTPException:
+        raise
     except DatasetNotFoundError:
         raise HTTPException(status_code=404, detail=f"Dataset not found: {dataset_id}")
     except Exception as e:
