@@ -50,9 +50,14 @@ htmlcov/
 .env.local
 
 # Database
-*.db
+# Exclude backup files but include main database
+*.db.backup*
+*.db.pre_*
+*.db.before_*
+test_*.db
 *.sqlite
 *.sqlite3
+# Note: backend/datasets.db is tracked (pre-seeded with 200 datasets)
 
 # Logs
 *.log
