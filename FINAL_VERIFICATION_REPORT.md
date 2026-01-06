@@ -281,6 +281,7 @@ cd frontend && npm install && npm run build
 | 6 | `6_files_tab.png` | Dataset details - Files/Access tab |
 | 7 | `7_chat_turn1.png` | Multi-turn chat: First query response |
 | 8 | `8_chat_multi_turn.png` | Multi-turn chat: Context-aware follow-up |
+| 9 | `9_rag_enhanced.png` | **RAG Enhanced: Gemini-generated structured response** |
 
 **Screenshot 1: Search Interface**
 - Clean, professional design
@@ -375,7 +376,42 @@ User: "Which one has the longest time range?"
 
 **Status:** ✅ **PASS - Multi-turn context maintained**
 
-### 6.3 Chat API Endpoints
+### 6.3 RAG Enhanced Generation (Gemini API)
+
+**Test Date:** 6 January 2026  
+**API:** Gemini Flash (gemini-flash-latest)
+
+**Test Query:**
+```
+"What datasets are available for biodiversity and species monitoring?"
+```
+
+**RAG Enhanced Response:**
+```markdown
+The Environmental Data Centre offers several key datasets for biodiversity and 
+species monitoring, primarily focused on butterflies and plants.
+
+### Butterfly Monitoring (United Kingdom Butterfly Monitoring Scheme - UKBMS)
+
+These datasets provide detailed information on butterfly populations across the UK,
+typically spanning from 1976 to 2022:
+
+1. **United Kingdom Butterfly Monitoring Scheme: species trends 2022** (Source 1)
+...
+```
+
+**Key Evidence of RAG Enhancement:**
+- ✅ Gemini successfully generated structured Markdown response
+- ✅ Used retrieved dataset information to answer query
+- ✅ Cited specific sources with relevance scores (0.80-0.85)
+- ✅ Retrieved from BOTH datasets AND supporting document chunks
+
+**Screenshot Evidence:**
+- `screenshots/9_rag_enhanced.png` - RAG enhanced response with formatted content
+
+**Status:** ✅ **PASS - Full RAG Generation Working**
+
+### 6.4 Chat API Endpoints
 
 | Endpoint | Method | Purpose | Status |
 |----------|--------|---------|--------|
