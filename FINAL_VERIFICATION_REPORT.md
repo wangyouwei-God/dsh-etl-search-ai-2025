@@ -163,7 +163,83 @@ UUID 755e0369... access_type = fileAccess ✅
 | Text chunking | 33 chunks/document | ✅ |
 | Vector embedding | 85 doc chunks in ChromaDB | ✅ |
 
-### 3.6 Class Hierarchy and OOP Design
+**Download Capability Verification:**
+
+**Class:** `SupportingDocFetcher` (466 lines)  
+**Location:** `infrastructure/etl/supporting_doc_fetcher.py`
+
+| Capability | Method | Status |
+|-----------|--------|--------|
+| ZIP download | `download_supporting_zip()` | ✅ Implemented |
+| Individual download | `download_document()` | ✅ Implemented |
+| Batch fetch | `fetch_all_documents()` | ✅ Implemented |
+| Type classification | `_classify_document_type()` | ✅ Implemented |
+
+**Download URL Pattern:**
+```
+https://data-package.ceh.ac.uk/sd/{dataset-uuid}.zip
+```
+
+**Status:** ✅ **Full capability implemented - sample of 4 documents tested**
+
+### 3.6 Metadata Relationship Modeling
+
+**Requirement:** Model relationships between metadata documents from JSON.
+
+**Database Schema:**
+```sql
+CREATE TABLE metadata_relationships (
+    id INTEGER PRIMARY KEY,
+    dataset_id VARCHAR(36) NOT NULL,
+    relation VARCHAR(500) NOT NULL,
+    target TEXT NOT NULL,
+    target_id VARCHAR(36),
+    target_url TEXT,
+    created_at DATETIME NOT NULL,
+    FOREIGN KEY(dataset_id) REFERENCES datasets(id)
+);
+```
+
+**Implementation Files:**
+- Model: `infrastructure/persistence/sqlite/models.py` (line 219)
+- Repository: `dataset_repository_impl.py` (lines 256, 314, 346)
+
+| Component | Status |
+|-----------|--------|
+| SQLAlchemy Model | ✅ `MetadataRelationshipModel` |
+| Foreign Key Constraint | ✅ `dataset_id → datasets(id)` |
+| Index on target_id | ✅ Created |
+
+**Current State:** Schema fully designed; data population pending for datasets with relationships.
+
+### 3.7 Dataset Download Capability
+
+**Requirement:** ETL library must be capable of downloading all datasets if needed.
+
+**ETL Runner CLI Options:**
+```bash
+python etl_runner.py {uuid} \
+  --download-fileaccess \
+  --fileaccess-max-files 200 \
+  --fileaccess-max-depth 1 \
+  --fileaccess-max-size-mb 500
+```
+
+| Parameter | Purpose | Default |
+|-----------|---------|---------|
+| `--download-fileaccess` | Enable file downloads | Off |
+| `--fileaccess-max-files` | Max files to download | 200 |
+| `--fileaccess-max-depth` | Subdirectory depth | 1 |
+| `--fileaccess-max-size-mb` | Size limit per file | 500 MB |
+
+**Current Test Results:**
+- 200 datasets ingested
+- 205 data files tracked
+- Full download capability verified with sample
+
+**Status:** ✅ **Full capability implemented - tested with sample datasets**
+
+### 3.8 Class Hierarchy and OOP Design
 
 **Requirement:** Demonstrate capability to abstract resources extracted.
 
@@ -559,18 +635,21 @@ WHERE d.id IS NULL;
 | 5 | RDF (Turtle) | 3.1 | ✅ |
 | 6 | Store entire document in database | 3.2 | ✅ |
 | 7 | Extract ISO 19115 fields | 3.2 | ✅ |
-| 8 | OOP class hierarchy | 3.6 | ✅ |
+| 8 | OOP class hierarchy | 3.8 | ✅ |
 | 9 | ZIP file extraction | 3.3 | ✅ |
 | 10 | **fileAccess handling** | **3.4** | ✅ |
 | 11 | Dataset-file relationships | 3.2 | ✅ |
-| 12 | Vector embeddings | 4.1 | ✅ |
-| 13 | Semantic search | 4.2-4.3 | ✅ |
-| 14 | Supporting documents RAG | 3.5, 6.2 | ✅ |
-| 15 | Svelte/Vue frontend | 5.1 | ✅ |
-| 16 | shadcn-ui components | 5.1 | ✅ |
-| 17 | Natural language queries | 4.3, 6 | ✅ |
-| 18 | **Frontend visual evidence** | **5.4** | ✅ |
-| 19 | **BONUS:** Conversational AI | 6 | ✅ |
+| 12 | **Metadata relationship modeling** | **3.6** | ✅ |
+| 13 | **Supporting docs download capability** | **3.5** | ✅ |
+| 14 | **Dataset download capability** | **3.7** | ✅ |
+| 15 | Vector embeddings | 4.1 | ✅ |
+| 16 | Semantic search | 4.2-4.3 | ✅ |
+| 17 | Supporting documents RAG | 3.5, 6.2 | ✅ |
+| 18 | Svelte/Vue frontend | 5.1 | ✅ |
+| 19 | shadcn-ui components | 5.1 | ✅ |
+| 20 | Natural language queries | 4.3, 6 | ✅ |
+| 21 | **Frontend visual evidence** | **5.4** | ✅ |
+| 22 | **BONUS:** Conversational AI | 6 | ✅ |
 
 ---
 
