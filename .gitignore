@@ -113,3 +113,4 @@ archive/
 
 # Root level chroma_db (if exists)
 /chroma_db/
+.claude/
