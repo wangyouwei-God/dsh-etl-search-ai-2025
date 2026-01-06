@@ -13,9 +13,11 @@ A modern, scalable dataset search and discovery platform built with **Clean Arch
 
 ## 🎯 Quick Start for Reviewers
 
-> **⚡ 5-Minute Verification** | 📊 **Full Test Report**: [`COMPREHENSIVE_TEST_REPORT.md`](./COMPREHENSIVE_TEST_REPORT.md)
+> **⚡ RECOMMENDED: 5-Minute Local Verification** | 📊 **Full Test Report**: [`COMPREHENSIVE_TEST_REPORT.md`](./COMPREHENSIVE_TEST_REPORT.md)
+>
+> *Alternative Docker deployment available below (takes 8-10 minutes)*
 
-### ✅ Fastest Path (3 Steps)
+### ✅ Fastest Path: Local Setup (3 Steps)
 
 This project **includes pre-loaded databases** with 200 datasets. No ETL required!
 
@@ -118,6 +120,39 @@ npm install && npm run dev
 # 2. View results with similarity scores
 # 3. Click for detailed metadata
 ```
+
+---
+
+### 🐳 Alternative: Docker Deployment (Optional)
+
+> **⚠️ Note**: Docker build takes 8-10 minutes. **Local setup (above) is recommended for faster verification**.
+
+```bash
+# Clone repository (if not already done)
+git clone https://github.com/wangyouwei-God/dsh-etl-search-ai-2025.git
+cd dsh-etl-search-ai-2025
+
+# Build and start services (8-10 minutes first time)
+docker compose up --build
+
+# Access services:
+# - Frontend: http://localhost:5173
+# - Backend API: http://localhost:8000/docs
+# - Health Check: http://localhost:8000/health
+```
+
+**Why Docker takes longer:**
+- **First build**: Downloads base images, installs 500+ npm packages, compiles Python dependencies (8-10 minutes)
+- **Subsequent builds**: Faster with caching (2-3 minutes)
+
+**Docker is useful for:**
+- Production deployment
+- Consistent environments across teams
+- CI/CD pipelines
+
+**For interview/review purposes**, local setup is faster and easier to troubleshoot.
+
+---
 
 ### 🔧 Troubleshooting
 
