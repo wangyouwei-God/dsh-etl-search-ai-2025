@@ -10,7 +10,7 @@ pydantic-settings==2.1.0
 
 # HTTP Client (for downloading remote metadata)
 requests==2.31.0
-httpx==0.26.0
+httpx==0.28.1
 
 # Retry Logic (for flaky remote catalogues)
 tenacity==8.2.3
@@ -23,10 +23,9 @@ sqlalchemy==2.0.25
 alembic==1.13.1
 
 # Vector Database & Embeddings (for semantic search)
-# Pin PyTorch to the version used by the running environment
-torch==2.5.1
-sentence-transformers==2.3.1
-chromadb==0.4.22
+torch==2.2.2
+chromadb==1.4.0
+sentence-transformers==5.2.0
 numpy==1.26.3
 
 # Data Validation

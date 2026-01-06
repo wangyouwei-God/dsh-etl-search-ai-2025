@@ -221,7 +221,7 @@ pydantic==2.5.3
 
 # HTTP Client & Retry Logic
 requests==2.31.0              # Robust HTTP client
-httpx==0.26.0                 # Async HTTP client
+httpx==0.28.1                 # Async HTTP client
 tenacity==8.2.3               # Retry logic with exponential backoff
 
 # XML Parsing
@@ -232,7 +232,7 @@ sqlalchemy==2.0.25
 alembic==1.13.1
 
 # Vector Database & Embeddings
-sentence-transformers==2.3.1
+sentence-transformers==5.2.0
 numpy==1.26.3
 faiss-cpu==1.7.4
 

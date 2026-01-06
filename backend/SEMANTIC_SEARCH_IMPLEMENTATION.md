@@ -309,8 +309,8 @@ vector_repo.upsert_vectors_batch(ids, embeddings, metadatas)
 ## Dependencies
 
 **New dependencies added to requirements.txt**:
-- `sentence-transformers==2.3.1`: For embedding generation
-- `chromadb==0.4.22`: For vector database
+- `sentence-transformers==5.2.0`: For embedding generation
+- `chromadb==1.4.0`: For vector database
 
 **Total additional dependencies installed**: ~40 packages (including transitive dependencies)
 
