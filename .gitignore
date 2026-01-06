@@ -97,8 +97,19 @@ backend/supporting_docs/
 extracted_datasets/
 extracted_archives/
 supporting_docs/
-chroma_db/
 
-# Vector database (regenerated on startup)
-# Note: ChromaDB is automatically initialized from SQLite on container start
+# ChromaDB backups and broken versions (NOT the main chroma_db)
+backend/chroma_db.pre_*/
+backend/chroma_db_broken*/
+chroma_db.*/
+
+# Duplicate databases - only backend/datasets.db should be tracked
+datasets.db
+frontend/datasets.db
+/datasets.db
+
+# Archive folder (development process files)
 archive/
+
+# Root level chroma_db (if exists)
+/chroma_db/
