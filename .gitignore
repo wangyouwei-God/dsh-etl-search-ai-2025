@@ -89,3 +89,16 @@ docs/_build/
 # OS specific
 Thumbs.db
 .DS_Store
+
+# ETL-generated data (downloaded at runtime)
+# These directories are populated by running ETL scripts
+# See README.md for instructions to regenerate
+backend/supporting_docs/
+extracted_datasets/
+extracted_archives/
+supporting_docs/
+chroma_db/
+
+# Vector database (regenerated on startup)
+# Note: ChromaDB is automatically initialized from SQLite on container start
+archive/

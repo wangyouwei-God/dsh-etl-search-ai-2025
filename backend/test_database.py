@@ -6,6 +6,7 @@ This script queries the database to confirm data was correctly saved.
 """
 
 import sys
+import os
 from pathlib import Path
 
 # Add src to path
@@ -22,7 +23,9 @@ def main():
     print()
 
     # Get database connection
-    db = get_database("test_datasets.db")
+    db_path = os.environ.get("DATASETS_DB_PATH", "datasets.db")
+    db = get_database(db_path)
+    print(f"Database path: {db_path}")
 
     # Query all datasets
     with db.session_scope() as session:

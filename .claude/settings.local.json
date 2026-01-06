@@ -28,7 +28,21 @@
       "Bash(docker compose:*)",
       "Bash(gh repo view:*)",
       "Bash(tree:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(env)",
+      "Bash(lsof:*)",
+      "Bash(tee:*)",
+      "Bash(python3:*)",
+      "Bash(PYTHONPATH=src python3:*)",
+      "Bash(docker:*)",
+      "Bash(timeout 120 python3:*)",
+      "Bash(\"/Users/wangyouwei/Projects/RSE_Assessment_Youwei/AI_CONVERSATIONS_FINAL.md\")",
+      "Bash(PYTHONPATH=backend/src python3:*)",
+      "Bash(timeout 30 python3:*)",
+      "Bash(xargs kill:*)",
+      "Bash(AI_CONVERSATIONS_FINAL.md)",
+      "Bash(timeout 300 python3:*)",
+      "Bash(PYTHONPATH=src timeout 300 python3:*)"
     ],
     "deny": [],
     "ask": []
