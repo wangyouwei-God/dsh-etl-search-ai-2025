@@ -4,56 +4,42 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
 *.egg-info/
-.installed.cfg
-*.egg
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Virtual Environment
 venv/
 env/
 ENV/
-.venv
 
-# IDEs
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
 
 # Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.hypothesis/
+tests/
+*.log
 
-# Git
-.git/
-.gitignore
+# Data files (will be mounted as volumes)
+*.db
+chroma_db/
+datasets.db
+
+# Environment
+.env
+.env.local
 
 # Documentation
 *.md
 docs/
 
-# Database files (these will be mounted as volumes)
-*.db
-*.sqlite
-*.sqlite3
-chroma_db/
-
-# Logs
-*.log
-logs/
-
-# Temporary files
-tmp/
-temp/
-*.tmp
+# Git
+.git/
+.gitignore

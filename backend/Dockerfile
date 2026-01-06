@@ -11,8 +11,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies
+# Use CPU-only PyTorch to reduce image size significantly (from ~9GB to <2GB)
 COPY requirements.txt .
-RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
+RUN pip wheel --no-cache-dir --wheel-dir /wheels \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    -r requirements.txt
 
 # =====================================
 # Stage 2: Runtime
@@ -30,7 +33,9 @@ RUN apt-get update && apt-get install -y \
 
 # Copy wheels from builder and install
 COPY --from=builder /wheels /wheels
-RUN pip install --no-cache-dir /wheels/* && rm -rf /wheels
+RUN pip install --no-cache-dir \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    /wheels/* && rm -rf /wheels
 
 # Copy application code
 COPY --chown=appuser:appuser . .

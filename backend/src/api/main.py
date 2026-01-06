@@ -209,23 +209,72 @@ async def health_check():
         raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
 
 
-@app.get("/api/search", response_model=SearchResponseSchema, tags=["Search"])
+@app.get(
+    "/api/search",
+    response_model=SearchResponseSchema,
+    tags=["Search"],
+    summary="Search datasets using semantic search",
+    responses={
+        200: {
+            "description": "Successful search response",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "query": "water quality",
+                        "total_results": 15,
+                        "processing_time_ms": 45.23,
+                        "results": [
+                            {
+                                "id": "550e8400-e29b-41d4-a716-446655440000",
+                                "title": "UK River Water Quality Monitoring",
+                                "abstract": "Monthly water quality measurements...",
+                                "score": 0.89,
+                                "keywords": ["water", "quality", "monitoring"],
+                                "has_geo_extent": True,
+                                "has_temporal_extent": True,
+                                "center_lat": 53.5,
+                                "center_lon": -2.5
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        422: {"description": "Invalid search query"}
+    }
+)
 async def search_datasets(
-    q: str = Query(..., description="Search query text"),
-    limit: int = Query(10, ge=1, le=100, description="Maximum number of results")
+    q: str = Query(
+        ...,
+        description="Search query text for semantic matching",
+        example="water quality monitoring",
+        min_length=1
+    ),
+    limit: int = Query(
+        10,
+        ge=1,
+        le=100,
+        description="Maximum number of results to return",
+        example=10
+    )
 ):
     """
-    Semantic search endpoint.
-    
-    Performs semantic search over dataset embeddings using the query text.
-    Returns datasets ranked by similarity score.
-    
+    Semantic search endpoint for finding relevant datasets.
+
+    Performs semantic search over dataset embeddings using natural language queries.
+    Returns datasets ranked by similarity score (0-1, higher is better).
+
+    **Example Request:**
+    ```
+    GET /api/search?q=land%20cover%20mapping&limit=20
+    ```
+
     Args:
-        q: Search query (e.g., "land cover mapping")
+        q: Natural language search query (e.g., "land cover mapping", "biodiversity UK")
         limit: Maximum number of results (1-100, default: 10)
-    
+
     Returns:
-        SearchResponseSchema with ranked results
+        SearchResponseSchema with ranked results and processing time
     """
     start_time = time.time()
     
