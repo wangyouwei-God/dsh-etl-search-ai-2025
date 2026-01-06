@@ -203,14 +203,28 @@ CREATE TABLE metadata_relationships (
 **Implementation Files:**
 - Model: `infrastructure/persistence/sqlite/models.py` (line 219)
 - Repository: `dataset_repository_impl.py` (lines 256, 314, 346)
+- Extractor: `json_extractor.py:_extract_relationships()` (lines 440-477)
 
 | Component | Status |
 |-----------|--------|
 | SQLAlchemy Model | ✅ `MetadataRelationshipModel` |
 | Foreign Key Constraint | ✅ `dataset_id → datasets(id)` |
-| Index on target_id | ✅ Created |
+| JSON Extraction | ✅ `_extract_relationships()` |
+| Database Persistence | ✅ Verified |
 
-**Current State:** Schema fully designed; data population pending for datasets with relationships.
+**Live Test (6 January 2026):**
+```bash
+ETL run on be0bdc0e-bc2e-4f1d-b524-2c02798dd893
+Result: 4 relationships extracted and persisted
+```
+
+**Sample Data in `metadata_relationships`:**
+| relation | target_id |
+|----------|-----------|
+| `memberOf` | c70f2c9a-b78c-4302-8577-8fc5499ea0f3 |
+| `memberOf` | 9f89445f-01b2-4711-80f2-a0e411d1a586 |
+
+**Status:** ✅ **Fully implemented and tested**
 
 ### 3.7 Dataset Download Capability
 
