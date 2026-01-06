@@ -12,6 +12,11 @@
 
 	onMount(async () => {
 		const id = $page.params.id;
+		if (!id) {
+			error = 'Dataset ID missing';
+			isLoading = false;
+			return;
+		}
 		try {
 			dataset = await getDataset(id);
 		} catch (e) {

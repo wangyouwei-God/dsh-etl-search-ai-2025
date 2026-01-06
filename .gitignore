@@ -89,3 +89,47 @@ docs/_build/
 # OS specific
 Thumbs.db
 .DS_Store
+
+# ETL-generated data (downloaded at runtime)
+# These directories are populated by running ETL scripts
+# See README.md for instructions to regenerate
+backend/supporting_docs/
+extracted_datasets/
+extracted_archives/
+supporting_docs/
+
+# ChromaDB backups and broken versions (NOT the main chroma_db)
+backend/chroma_db.pre_*/
+backend/chroma_db_broken*/
+chroma_db.*/
+
+# Duplicate databases - only backend/datasets.db should be tracked
+datasets.db
+frontend/datasets.db
+/datasets.db
+
+# Archive folder (development process files)
+archive/
+
+# Root level chroma_db (if exists)
+/chroma_db/
+.claude/
+
+# Development process documentation (keep locally, not in repo)
+CRITICAL_ISSUES_DIAGNOSIS.md
+IMPROVEMENTS_REPORT.md
+PRIORITY_ACTION_PLAN.md
+REQUIREMENTS_CHECKLIST.md
+TASK_REQUIREMENTS_ANALYSIS.md
+GAP_ANALYSIS_TESTING_VS_CONVERSATION.md
+PDF_REQUIREMENTS_VERIFICATION.md
+QUALITY_AUDIT_REPORT.md
+FINAL_SUBMISSION_CHECKLIST.md
+FINAL_HARDENING_SUMMARY.md
+DEFENSE_STRATEGY.md
+DOCKER_FIX_REPORT.md
+DOCKER_TEST_REPORT.md
+DETAILED_VERIFICATION_REPORT.md
+COMPREHENSIVE_SYSTEM_TEST.md
+DOCUMENTATION_INDEX.md
+ZIP_EXTRACTION_TEST_REPORT.md

@@ -6,6 +6,7 @@ Tests: get_by_id(), exists(), search_by_title(), delete()
 """
 
 import sys
+import os
 from pathlib import Path
 
 # Add src to path
@@ -22,15 +23,25 @@ def main():
     print()
 
     # Get database connection
-    db = get_database("test_datasets.db")
+    db_path = os.environ.get("DATASETS_DB_PATH", "datasets.db")
+    db = get_database(db_path)
+    print(f"Database path: {db_path}")
 
     with db.session_scope() as session:
         repository = SQLiteDatasetRepository(session)
 
+        # Pick a real dataset ID for testing
+        sample = repository.get_all(limit=1, offset=0)
+        if not sample:
+            print("✗ No datasets found to test against")
+            return
+
+        sample_dataset, _ = sample[0]
+        dataset_id = str(sample_dataset.id)
+
         # Test 1: get_by_id()
         print("TEST 1: get_by_id()")
         print("-" * 80)
-        dataset_id = "f648ed85-1b40-4b3c-a3d8-7bfec39ec815"
         result = repository.get_by_id(dataset_id)
 
         if result:
@@ -72,9 +83,11 @@ def main():
         print("TEST 4: search_by_title()")
         print("-" * 80)
 
-        # Search for "Land Cover"
-        results = repository.search_by_title("Land Cover")
-        print(f"Search 'Land Cover': Found {len(results)} result(s)")
+        # Use a keyword from the sample dataset title
+        title_tokens = sample_dataset.title.split()
+        query = title_tokens[0] if title_tokens else sample_dataset.title[:5]
+        results = repository.search_by_title(query)
+        print(f"Search '{query}': Found {len(results)} result(s)")
         for dataset, metadata in results:
             print(f"  - {dataset.title}")
 
