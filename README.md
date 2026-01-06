@@ -123,6 +123,30 @@ npm install && npm run dev
 
 ---
 
+## 📸 Screenshots
+
+### Search Interface
+![Search Page](screenshots/1_search_page.png)
+*Natural language search with category filters*
+
+### Search Results
+![Search Results](screenshots/2_search_results.png)
+*Semantic search results with relevance scores*
+
+### Dataset Details
+![Dataset Details](screenshots/4_dataset_details.png)
+*Comprehensive dataset information with ISO 19115 metadata*
+
+### RAG-Powered AI Assistant
+![AI Assistant](screenshots/9_rag_enhanced.png)
+*Conversational AI with Gemini-powered RAG and source citations*
+
+### Multi-turn Chat
+![Multi-turn Chat](screenshots/8_chat_multi_turn.png)
+*Context-aware follow-up questions with maintained conversation history*
+
+---
+
 ### 🐳 Alternative: Docker Deployment (Optional)
 
 > **⚠️ Note**: Docker build takes 8-10 minutes. **Local setup (above) is recommended for faster verification**.
