@@ -366,6 +366,34 @@ Advanced automated data acquisition infrastructure:
 - **Multi-Format Support**: Handles PDF, DOCX, CSV, DOC formats
 - **Database Integration**: Full integration with metadata and data_files tables
 
+### 🔑 RAG Chat Configuration (Optional)
+
+The conversational AI assistant requires a **free** Gemini API key. Without it, the system gracefully falls back to semantic search results.
+
+**Step 1: Get Your Free API Key**
+1. Visit [Google AI Studio](https://ai.google.dev/gemini-api/docs/api-key)
+2. Sign in with your Google account
+3. Click "Get API Key" → "Create API key"
+4. Copy the generated key
+
+**Step 2: Configure the Application**
+```bash
+# Copy the example configuration file
+cp .env.example .env
+
+# Edit .env and add your API key
+# GEMINI_API_KEY=your_actual_api_key_here
+# GEMINI_MODEL=gemini-flash-latest
+```
+
+**Step 3: Restart the Backend**
+```bash
+python src/api/main.py
+# Look for: ✓ RAG service initialized with Gemini model: gemini-flash-latest
+```
+
+> **Note**: All other features (semantic search, dataset browsing, metadata viewing) work perfectly without an API key. The chat feature will display "Language model unavailable" and provide search results instead.
+
 ---
 
 ## Architecture Overview
