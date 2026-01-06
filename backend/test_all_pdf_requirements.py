@@ -1,0 +1,541 @@
+#!/usr/bin/env python3
+"""
+Comprehensive test suite for ALL PDF requirements.
+Tests the implementation against every requirement from the DSH RSE Coding Task PDF.
+"""
+
+import sys
+import json
+from pathlib import Path
+
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent / 'src'))
+
+from infrastructure.etl.extractors.xml_extractor import XMLExtractor
+from infrastructure.etl.extractors.json_extractor import JSONExtractor
+from infrastructure.etl.extractors.jsonld_extractor import JSONLDExtractor
+from infrastructure.etl.extractors.rdf_extractor import RDFExtractor
+from infrastructure.etl.factory.extractor_factory import ExtractorFactory
+from infrastructure.services.embedding_service import HuggingFaceEmbeddingService
+from infrastructure.persistence.vector.chroma_repository import ChromaVectorRepository
+from infrastructure.persistence.sqlite.connection import DatabaseConnection
+import sqlite3
+
+
+def print_header(title):
+    """Print formatted section header"""
+    print("\n" + "=" * 80)
+    print(f"  {title}")
+    print("=" * 80)
+
+
+def print_result(test_name, passed, details=""):
+    """Print test result"""
+    status = "✅ PASS" if passed else "❌ FAIL"
+    print(f"{status} | {test_name}")
+    if details:
+        print(f"         {details}")
+
+
+def test_etl_extractors():
+    """
+    PDF Requirement 1: ETL Subsystem - 4 Metadata Format Extractors
+    - ISO 19139 XML
+    - JSON
+    - JSON-LD (Schema.org)
+    - RDF (Turtle)
+    """
+    print_header("TEST 1: ETL SUBSYSTEM - 4 METADATA FORMAT EXTRACTORS")
+
+    results = []
+
+    # Test 1.1: XML Extractor (ISO 19139)
+    try:
+        xml_extractor = XMLExtractor()
+        sample_xml = Path("sample_metadata.xml")
+        if sample_xml.exists():
+            metadata = xml_extractor.extract(str(sample_xml))
+            has_title = bool(metadata.title)
+            has_abstract = bool(metadata.abstract)
+            print_result("XML Extractor (ISO 19139)", has_title and has_abstract,
+                        f"Extracted: title='{metadata.title[:50]}...', abstract={len(metadata.abstract)} chars")
+            results.append(has_title and has_abstract)
+        else:
+            print_result("XML Extractor (ISO 19139)", False, "sample_metadata.xml not found")
+            results.append(False)
+    except Exception as e:
+        print_result("XML Extractor (ISO 19139)", False, f"Error: {str(e)}")
+        results.append(False)
+
+    # Test 1.2: JSON Extractor
+    try:
+        conn = sqlite3.connect("datasets.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT dataset_id, raw_document_json FROM metadata WHERE raw_document_json IS NOT NULL LIMIT 1")
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            dataset_id, raw_json = row
+            json_extractor = JSONExtractor()
+
+            # Write to temp file
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                f.write(raw_json)
+                temp_path = f.name
+
+            metadata = json_extractor.extract(temp_path)
+            Path(temp_path).unlink()
+
+            has_title = bool(metadata.title)
+            has_abstract = bool(metadata.abstract)
+            print_result("JSON Extractor", has_title and has_abstract,
+                        f"Extracted: title='{metadata.title[:50]}...', keywords={len(metadata.keywords)} items")
+            results.append(has_title and has_abstract)
+        else:
+            print_result("JSON Extractor", False, "No JSON metadata in database")
+            results.append(False)
+    except Exception as e:
+        print_result("JSON Extractor", False, f"Error: {str(e)}")
+        results.append(False)
+
+    # Test 1.3: JSON-LD Extractor (Schema.org)
+    try:
+        jsonld_extractor = JSONLDExtractor()
+        print_result("JSON-LD Extractor (Schema.org)", True,
+                    "Extractor instantiated successfully")
+        results.append(True)
+    except Exception as e:
+        print_result("JSON-LD Extractor (Schema.org)", False, f"Error: {str(e)}")
+        results.append(False)
+
+    # Test 1.4: RDF Extractor (Turtle)
+    try:
+        rdf_extractor = RDFExtractor()
+        print_result("RDF Extractor (Turtle)", True,
+                    "Extractor instantiated successfully")
+        results.append(True)
+    except Exception as e:
+        print_result("RDF Extractor (Turtle)", False, f"Error: {str(e)}")
+        results.append(False)
+
+    # Test 1.5: Extractor Factory (Factory Pattern)
+    try:
+        factory = ExtractorFactory()
+        xml_ext = factory.create_extractor("test.xml")
+        json_ext = factory.create_extractor("test.json")
+        jsonld_ext = factory.create_extractor("test.jsonld")
+        rdf_ext = factory.create_extractor("test.ttl")
+
+        all_created = all([
+            isinstance(xml_ext, XMLExtractor),
+            isinstance(json_ext, JSONExtractor),
+            isinstance(jsonld_ext, JSONLDExtractor),
+            isinstance(rdf_ext, RDFExtractor)
+        ])
+        print_result("Extractor Factory Pattern", all_created,
+                    "All 4 extractors created successfully via Factory")
+        results.append(all_created)
+    except Exception as e:
+        print_result("Extractor Factory Pattern", False, f"Error: {str(e)}")
+        results.append(False)
+
+    return all(results)
+
+
+def test_semantic_database():
+    """
+    PDF Requirement 2: Semantic Database - Vector Embeddings
+    - 384-dimensional sentence transformers
+    - ChromaDB vector storage
+    - Cosine similarity search
+    """
+    print_header("TEST 2: SEMANTIC DATABASE - VECTOR EMBEDDINGS")
+
+    results = []
+
+    try:
+        # Test 2.1: Embedding Service
+        embedding_service = HuggingFaceEmbeddingService()
+        model_name = embedding_service.get_model_name()
+        dimension = embedding_service.get_dimension()
+
+        is_correct_model = "all-MiniLM-L6-v2" in model_name
+        is_384_dim = dimension == 384
+
+        print_result("Embedding Model", is_correct_model,
+                    f"Model: {model_name}")
+        print_result("Embedding Dimension", is_384_dim,
+                    f"Dimension: {dimension} (expected: 384)")
+        results.extend([is_correct_model, is_384_dim])
+
+        # Test 2.2: Vector Generation
+        test_text = "land cover mapping United Kingdom"
+        embedding = embedding_service.generate_embedding(test_text)
+        is_vector = len(embedding) == 384 and all(isinstance(x, float) for x in embedding)
+        print_result("Vector Generation", is_vector,
+                    f"Generated {len(embedding)}-dimensional vector")
+        results.append(is_vector)
+
+        # Test 2.3: ChromaDB Repository
+        vector_repo = ChromaVectorRepository("chroma_db")
+        vector_count = vector_repo.count()
+        has_vectors = vector_count == 200
+        print_result("ChromaDB Vector Storage", has_vectors,
+                    f"Stored vectors: {vector_count} (expected: 200)")
+        results.append(has_vectors)
+
+        # Test 2.4: Semantic Search Quality
+        search_results = vector_repo.search(embedding, limit=3)
+        has_results = len(search_results) == 3
+        all_have_scores = all(hasattr(r, 'score') for r in search_results)
+        top_score = search_results[0].score if search_results else 0
+        is_high_quality = top_score > 0.7
+
+        print_result("Semantic Search Results", has_results and all_have_scores,
+                    f"Found {len(search_results)} results, top score: {top_score:.4f}")
+        print_result("Search Quality (>0.7 similarity)", is_high_quality,
+                    f"Top result: {search_results[0].metadata.get('title', 'N/A')[:60]}...")
+        results.extend([has_results, is_high_quality])
+
+    except Exception as e:
+        print_result("Semantic Database Tests", False, f"Error: {str(e)}")
+        results.append(False)
+
+    return all(results)
+
+
+def test_database_schema():
+    """
+    PDF Requirement 6: Database Schema
+    - datasets table
+    - metadata table (with raw documents)
+    - data_files table
+    - supporting_documents table
+    - metadata_relationships table
+    """
+    print_header("TEST 6: DATABASE SCHEMA")
+
+    results = []
+
+    try:
+        conn = sqlite3.connect("datasets.db")
+        cursor = conn.cursor()
+
+        # Test 6.1: Required Tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = [row[0] for row in cursor.fetchall()]
+
+        required_tables = ['datasets', 'metadata', 'data_files', 'supporting_documents', 'metadata_relationships']
+        for table in required_tables:
+            exists = table in tables
+            print_result(f"Table: {table}", exists)
+            results.append(exists)
+
+        # Test 6.2: Dataset Count
+        cursor.execute("SELECT COUNT(*) FROM datasets")
+        dataset_count = cursor.fetchone()[0]
+        has_200 = dataset_count == 200
+        print_result("Dataset Count", has_200, f"Total: {dataset_count} (expected: 200)")
+        results.append(has_200)
+
+        # Test 6.3: Metadata with Raw Documents
+        cursor.execute("SELECT COUNT(*) FROM metadata WHERE raw_document_json IS NOT NULL")
+        json_count = cursor.fetchone()[0]
+        print_result("JSON Raw Documents", json_count == 200, f"Count: {json_count}")
+        results.append(json_count == 200)
+
+        cursor.execute("SELECT COUNT(*) FROM metadata WHERE raw_document_xml IS NOT NULL")
+        xml_count = cursor.fetchone()[0]
+        print_result("XML Raw Documents", xml_count > 0, f"Count: {xml_count}")
+        results.append(xml_count > 0)
+
+        # Test 6.4: Geospatial Coverage
+        cursor.execute("SELECT COUNT(*) FROM metadata WHERE bounding_box_json IS NOT NULL")
+        bbox_count = cursor.fetchone()[0]
+        bbox_percentage = (bbox_count / dataset_count * 100) if dataset_count > 0 else 0
+        has_geo = bbox_percentage > 95
+        print_result("Geospatial Coverage (>95%)", has_geo,
+                    f"{bbox_count}/{dataset_count} datasets ({bbox_percentage:.1f}%)")
+        results.append(has_geo)
+
+        # Test 6.5: Supporting Documents
+        cursor.execute("SELECT COUNT(*) FROM supporting_documents")
+        doc_count = cursor.fetchone()[0]
+        has_docs = doc_count > 0
+        print_result("Supporting Documents", has_docs, f"Count: {doc_count}")
+        results.append(has_docs)
+
+        conn.close()
+
+    except Exception as e:
+        print_result("Database Schema Tests", False, f"Error: {str(e)}")
+        results.append(False)
+
+    return all(results)
+
+
+def test_clean_architecture():
+    """
+    PDF Requirement 4: Clean Architecture (4 Layers)
+    - Domain Layer (entities, interfaces)
+    - Application Layer (services, use cases)
+    - Infrastructure Layer (persistence, external)
+    - API Layer (FastAPI endpoints)
+    """
+    print_header("TEST 4: CLEAN ARCHITECTURE - 4-LAYER SEPARATION")
+
+    results = []
+
+    # Test 4.1: Domain Layer
+    try:
+        from domain.entities.dataset import Dataset
+        from domain.entities.metadata import Metadata
+        print_result("Domain Layer - Entities", True,
+                    "Dataset and Metadata entities exist")
+        results.append(True)
+    except Exception as e:
+        print_result("Domain Layer - Entities", False, f"Error: {str(e)}")
+        results.append(False)
+
+    # Test 4.2: Application Layer
+    try:
+        from application.interfaces.metadata_extractor import IMetadataExtractor
+        from application.interfaces.embedding_service import IEmbeddingService
+        print_result("Application Layer - Interfaces", True,
+                    "IMetadataExtractor and IEmbeddingService interfaces exist")
+        results.append(True)
+    except Exception as e:
+        print_result("Application Layer - Interfaces", False, f"Error: {str(e)}")
+        results.append(False)
+
+    # Test 4.3: Infrastructure Layer
+    try:
+        from infrastructure.persistence.sqlite.connection import DatabaseConnection
+        from infrastructure.persistence.vector.chroma_repository import ChromaVectorRepository
+        from infrastructure.services.embedding_service import HuggingFaceEmbeddingService
+        print_result("Infrastructure Layer - Implementation", True,
+                    "Database, Vector Store, and Embedding Service exist")
+        results.append(True)
+    except Exception as e:
+        print_result("Infrastructure Layer - Implementation", False, f"Error: {str(e)}")
+        results.append(False)
+
+    # Test 4.4: API Layer
+    try:
+        from api.main import app
+        from api.models import SearchResponseSchema, ChatRequestSchema
+        print_result("API Layer - FastAPI", True,
+                    "FastAPI application and API models exist")
+        results.append(True)
+    except Exception as e:
+        print_result("API Layer - FastAPI", False, f"Error: {str(e)}")
+        results.append(False)
+
+    return all(results)
+
+
+def test_design_patterns():
+    """
+    PDF Requirement 5: OOP Design Patterns
+    - Strategy Pattern (extractors)
+    - Factory Pattern (extractor factory)
+    - Repository Pattern (data access)
+    """
+    print_header("TEST 5: OOP DESIGN PATTERNS")
+
+    results = []
+
+    # Test 5.1: Strategy Pattern (Extractors)
+    try:
+        from application.interfaces.metadata_extractor import IMetadataExtractor
+        from infrastructure.etl.extractors.xml_extractor import XMLExtractor
+        from infrastructure.etl.extractors.json_extractor import JSONExtractor
+
+        xml_ext = XMLExtractor()
+        json_ext = JSONExtractor()
+
+        # All extractors implement the same interface
+        is_strategy = (
+            isinstance(xml_ext, IMetadataExtractor) and
+            isinstance(json_ext, IMetadataExtractor)
+        )
+        print_result("Strategy Pattern - Extractors", is_strategy,
+                    "All extractors implement IMetadataExtractor interface")
+        results.append(is_strategy)
+    except Exception as e:
+        print_result("Strategy Pattern - Extractors", False, f"Error: {str(e)}")
+        results.append(False)
+
+    # Test 5.2: Factory Pattern
+    try:
+        from infrastructure.etl.factory.extractor_factory import ExtractorFactory
+        factory = ExtractorFactory()
+
+        # Factory can create all extractor types (expects file paths with extensions)
+        xml = factory.create_extractor("test.xml")
+        json_ext = factory.create_extractor("test.json")
+
+        is_factory = xml is not None and json_ext is not None
+        print_result("Factory Pattern - ExtractorFactory", is_factory,
+                    "Factory creates extractors by file extension")
+        results.append(is_factory)
+    except Exception as e:
+        print_result("Factory Pattern - ExtractorFactory", False, f"Error: {str(e)}")
+        results.append(False)
+
+    # Test 5.3: Repository Pattern
+    try:
+        from domain.repositories.vector_repository import IVectorRepository
+        from infrastructure.persistence.vector.chroma_repository import ChromaVectorRepository
+
+        repo = ChromaVectorRepository("chroma_db")
+        is_repository = isinstance(repo, IVectorRepository)
+
+        print_result("Repository Pattern - ChromaRepository", is_repository,
+                    "ChromaVectorRepository implements IVectorRepository interface")
+        results.append(is_repository)
+    except Exception as e:
+        print_result("Repository Pattern - ChromaRepository", False, f"Error: {str(e)}")
+        results.append(False)
+
+    return all(results)
+
+
+def test_zip_extraction():
+    """
+    PDF Requirement 7: ZIP File Extraction
+    - Download and extract ZIP archives
+    - Handle nested archives
+    - Extract data files and supporting documents
+    """
+    print_header("TEST 7: ZIP FILE EXTRACTION")
+
+    results = []
+
+    try:
+        from infrastructure.etl.zip_extractor import ZipExtractor
+
+        zip_extractor = ZipExtractor()
+        print_result("ZIP Extractor Initialization", True,
+                    "ZipExtractor instantiated successfully")
+        results.append(True)
+
+        # Check if supporting documents were extracted
+        conn = sqlite3.connect("datasets.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM supporting_documents")
+        doc_count = cursor.fetchone()[0]
+        conn.close()
+
+        has_extracted_docs = doc_count > 0
+        print_result("ZIP Extraction - Supporting Docs", has_extracted_docs,
+                    f"Extracted {doc_count} documents from ZIP archives")
+        results.append(has_extracted_docs)
+
+    except Exception as e:
+        print_result("ZIP Extraction Tests", False, f"Error: {str(e)}")
+        results.append(False)
+
+    return all(results)
+
+
+def test_supporting_documents():
+    """
+    PDF Requirement 8: Supporting Document Processing
+    - Extract PDFs, HTML, etc. from ZIP archives
+    - Store in database
+    - Process for RAG (chunking, embedding)
+    """
+    print_header("TEST 8: SUPPORTING DOCUMENT PROCESSING")
+
+    results = []
+
+    try:
+        conn = sqlite3.connect("datasets.db")
+        cursor = conn.cursor()
+
+        # Test 8.1: Supporting Documents Table
+        cursor.execute("""
+            SELECT COUNT(*),
+                   SUM(CASE WHEN document_type = 'pdf' THEN 1 ELSE 0 END) as pdf_count,
+                   SUM(CASE WHEN document_type = 'html' THEN 1 ELSE 0 END) as html_count
+            FROM supporting_documents
+        """)
+        total, pdf_count, html_count = cursor.fetchone()
+
+        has_docs = total > 0
+        print_result("Supporting Documents Storage", has_docs,
+                    f"Total: {total}, PDF: {pdf_count}, HTML: {html_count}")
+        results.append(has_docs)
+
+        # Test 8.2: Supporting Docs Content Extraction
+        cursor.execute("SELECT COUNT(*) FROM supporting_documents WHERE content_text IS NOT NULL")
+        content_count = cursor.fetchone()[0]
+
+        has_content = content_count > 0
+        print_result("Supporting Docs - Content Extraction", has_content,
+                    f"{content_count}/{total} documents have extracted text")
+        results.append(has_content)
+
+        conn.close()
+
+        # Test 8.3: Supporting Docs in Vector DB
+        try:
+            supporting_repo = ChromaVectorRepository("chroma_db", collection_name="supporting_docs")
+            vector_count = supporting_repo.count()
+            has_vectors = vector_count > 0
+            print_result("Supporting Docs - Vector Storage", has_vectors,
+                        f"{vector_count} document chunks in ChromaDB")
+            results.append(has_vectors)
+        except Exception as e:
+            print_result("Supporting Docs - Vector Storage", False, f"Error: {str(e)}")
+            results.append(False)
+
+    except Exception as e:
+        print_result("Supporting Document Tests", False, f"Error: {str(e)}")
+        results.append(False)
+
+    return all(results)
+
+
+def main():
+    """Run all PDF requirement tests"""
+    print("\n" + "╔" + "=" * 78 + "╗")
+    print("║" + " " * 15 + "DSH RSE CODING TASK - COMPREHENSIVE TEST SUITE" + " " * 15 + "║")
+    print("║" + " " * 20 + "University of Manchester - RSE Team" + " " * 22 + "║")
+    print("╚" + "=" * 78 + "╝")
+
+    test_results = {}
+
+    # Run all tests
+    test_results["ETL Extractors (4 formats)"] = test_etl_extractors()
+    test_results["Semantic Database"] = test_semantic_database()
+    test_results["Clean Architecture"] = test_clean_architecture()
+    test_results["Design Patterns"] = test_design_patterns()
+    test_results["Database Schema"] = test_database_schema()
+    test_results["ZIP Extraction"] = test_zip_extraction()
+    test_results["Supporting Documents"] = test_supporting_documents()
+
+    # Summary
+    print_header("FINAL TEST SUMMARY")
+
+    total_tests = len(test_results)
+    passed_tests = sum(1 for passed in test_results.values() if passed)
+
+    for test_name, passed in test_results.items():
+        status = "✅ PASS" if passed else "❌ FAIL"
+        print(f"{status} | {test_name}")
+
+    print("\n" + "-" * 80)
+    percentage = (passed_tests / total_tests * 100) if total_tests > 0 else 0
+    print(f"OVERALL: {passed_tests}/{total_tests} test suites passed ({percentage:.1f}%)")
+    print("-" * 80)
+
+    return passed_tests == total_tests
+
+
+if __name__ == '__main__':
+    success = main()
+    sys.exit(0 if success else 1)
