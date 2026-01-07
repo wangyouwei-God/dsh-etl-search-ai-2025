@@ -504,6 +504,127 @@ def test_supporting_documents():
     return all(results)
 
 
+def test_web_frontend():
+    """
+    PDF Requirement 3: Web Frontend Application
+    - Built with Svelte/SvelteKit
+    - Uses shadcn-ui (bits-ui for Svelte)
+    - Modern UI with Tailwind CSS
+    """
+    print_header("TEST 3: WEB FRONTEND APPLICATION")
+
+    results = []
+
+    try:
+        frontend_path = Path(__file__).parent.parent / "frontend"
+        package_json = frontend_path / "package.json"
+
+        if not package_json.exists():
+            print_result("Frontend package.json", False, "File not found")
+            return False
+
+        import json
+        with open(package_json) as f:
+            pkg = json.load(f)
+
+        deps = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
+
+        # Test 3.1: Svelte Framework
+        has_svelte = "svelte" in deps
+        svelte_version = deps.get("svelte", "not found")
+        print_result("Svelte Framework", has_svelte,
+                    f"Version: {svelte_version}")
+        results.append(has_svelte)
+
+        # Test 3.2: SvelteKit
+        has_sveltekit = "@sveltejs/kit" in deps
+        sveltekit_version = deps.get("@sveltejs/kit", "not found")
+        print_result("SvelteKit", has_sveltekit,
+                    f"Version: {sveltekit_version}")
+        results.append(has_sveltekit)
+
+        # Test 3.3: shadcn-ui (bits-ui for Svelte)
+        has_bits_ui = "bits-ui" in deps
+        bits_version = deps.get("bits-ui", "not found")
+        print_result("shadcn-ui (bits-ui)", has_bits_ui,
+                    f"Version: {bits_version}")
+        results.append(has_bits_ui)
+
+        # Test 3.4: Tailwind CSS
+        has_tailwind = "tailwindcss" in deps
+        tailwind_version = deps.get("tailwindcss", "not found")
+        print_result("Tailwind CSS", has_tailwind,
+                    f"Version: {tailwind_version}")
+        results.append(has_tailwind)
+
+        # Test 3.5: Frontend Screenshots Exist
+        screenshots_path = Path(__file__).parent.parent / "screenshots"
+        screenshot_count = len(list(screenshots_path.glob("*.png"))) if screenshots_path.exists() else 0
+        has_screenshots = screenshot_count >= 5
+        print_result("Visual Evidence (Screenshots)", has_screenshots,
+                    f"{screenshot_count} screenshots available")
+        results.append(has_screenshots)
+
+    except Exception as e:
+        print_result("Web Frontend Tests", False, f"Error: {str(e)}")
+        results.append(False)
+
+    return all(results)
+
+
+def test_rag_chat():
+    """
+    PDF Requirement 9 (BONUS): RAG-Powered Conversational AI
+    - Chat API endpoints
+    - Multi-turn conversation support
+    - Source citations
+    - Gemini integration
+    """
+    print_header("TEST 9: RAG CHAT (BONUS FEATURE)")
+
+    results = []
+
+    try:
+        # Test 9.1: Chat Router Exists
+        from api.routers import chat as chat_router
+        has_router = hasattr(chat_router, 'router')
+        print_result("Chat API Router", has_router,
+                    "api/routers/chat.py module loaded")
+        results.append(has_router)
+
+        # Test 9.2: RAG Service Exists
+        from application.services.rag_service import RAGService
+        print_result("RAG Service", True,
+                    "RAGService class exists")
+        results.append(True)
+
+        # Test 9.3: Gemini Service Exists
+        from infrastructure.services.gemini_service import GeminiService
+        print_result("Gemini Integration", True,
+                    "GeminiService class exists")
+        results.append(True)
+
+        # Test 9.4: Chat API Models
+        from api.models import ChatRequestSchema, ChatResponseSchema
+        print_result("Chat API Models", True,
+                    "ChatRequestSchema and ChatResponseSchema defined")
+        results.append(True)
+
+        # Test 9.5: Chat Frontend Component
+        frontend_path = Path(__file__).parent.parent / "frontend"
+        chat_component = frontend_path / "src" / "lib" / "components" / "ChatInterface.svelte"
+        has_chat_ui = chat_component.exists()
+        print_result("Chat UI Component", has_chat_ui,
+                    "ChatInterface.svelte exists" if has_chat_ui else "Not found")
+        results.append(has_chat_ui)
+
+    except Exception as e:
+        print_result("RAG Chat Tests", False, f"Error: {str(e)}")
+        results.append(False)
+
+    return all(results)
+
+
 def main():
     """Run all PDF requirement tests"""
     print("\n" + "╔" + "=" * 78 + "╗")
@@ -513,14 +634,16 @@ def main():
 
     test_results = {}
 
-    # Run all tests
+    # Run all 9 PDF requirement tests
     test_results["ETL Extractors (4 formats)"] = test_etl_extractors()
     test_results["Semantic Database"] = test_semantic_database()
+    test_results["Web Frontend (Svelte)"] = test_web_frontend()
     test_results["Clean Architecture"] = test_clean_architecture()
     test_results["Design Patterns"] = test_design_patterns()
     test_results["Database Schema"] = test_database_schema()
     test_results["ZIP Extraction"] = test_zip_extraction()
     test_results["Supporting Documents"] = test_supporting_documents()
+    test_results["RAG Chat (Bonus)"] = test_rag_chat()
 
     # Summary
     print_header("FINAL TEST SUMMARY")
