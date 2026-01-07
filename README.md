@@ -150,9 +150,9 @@ npm install && npm run dev
 
 ---
 
-### 🐳 Alternative: Docker Deployment (Optional)
+### 🐳 Docker Deployment (Production-Ready)
 
-> **⚠️ Note**: Docker build takes 8-10 minutes. **Local setup (above) is recommended for faster verification**.
+> **⚡ One-command deployment** with full environment isolation. Build time: 8-10 minutes (first time only).
 
 ```bash
 # Clone repository (if not already done)
@@ -168,16 +168,18 @@ docker compose up --build
 # - Health Check: http://localhost:8000/health
 ```
 
-**Why Docker takes longer:**
-- **First build**: Downloads base images, installs 500+ npm packages, compiles Python dependencies (8-10 minutes)
-- **Subsequent builds**: Faster with caching (2-3 minutes)
+**Docker Advantages:**
+- **Zero dependency setup** - No Python, Node.js, or package installation required
+- **Complete isolation** - Won't affect your system environment
+- **Production-ready** - Same configuration used for deployment
+- **Consistent results** - Identical behavior across all platforms
+- **Full-stack deployment** - Backend + Frontend + Database in one command
 
-**Docker is useful for:**
-- Production deployment
-- Consistent environments across teams
-- CI/CD pipelines
+**Build Time:**
+- **First build**: 8-10 minutes (downloads images, installs all dependencies)
+- **Subsequent runs**: < 1 minute (uses cached layers)
 
-**For interview/review purposes**, local setup is faster and easier to troubleshoot.
+> **💡 Tip**: For quick code inspection and individual component testing, local setup is faster. For evaluating the complete system as a production application, Docker is recommended.
 
 ---
 
