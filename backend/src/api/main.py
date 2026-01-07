@@ -505,18 +505,23 @@ async def list_datasets(
 if __name__ == "__main__":
     import uvicorn
     
+    # Allow port configuration via environment variable for flexibility
+    # Usage: PORT=8001 python src/api/main.py (if port 8000 is occupied)
+    port = int(os.environ.get("PORT", 8000))
+    
     print("=" * 80)
     print("Starting Dataset Search and Discovery API")
     print("=" * 80)
     print()
-    print("API Documentation: http://localhost:8000/docs")
-    print("Alternative Docs:  http://localhost:8000/redoc")
+    print(f"API Documentation: http://localhost:{port}/docs")
+    print(f"Alternative Docs:  http://localhost:{port}/redoc")
     print()
     
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=True,
         log_level="info"
     )
+

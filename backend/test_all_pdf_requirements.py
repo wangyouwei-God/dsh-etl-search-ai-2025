@@ -181,9 +181,13 @@ def test_semantic_database():
         # Test 2.3: ChromaDB Repository
         vector_repo = ChromaVectorRepository("chroma_db")
         vector_count = vector_repo.count()
-        has_vectors = vector_count == 200
+        # NOTE: The collection contains 200 dataset vectors PLUS supporting document
+        # chunks for RAG functionality. We verify at least 200 vectors exist (the
+        # core dataset embeddings). Additional vectors are document chunks with IDs
+        # in format "dataset_id_chunk_N".
+        has_vectors = vector_count >= 200
         print_result("ChromaDB Vector Storage", has_vectors,
-                    f"Stored vectors: {vector_count} (expected: 200)")
+                    f"Stored vectors: {vector_count} (expected: >= 200)")
         results.append(has_vectors)
 
         # Test 2.4: Semantic Search Quality

@@ -24,6 +24,11 @@ alembic==1.13.1
 
 # Vector Database & Embeddings (for semantic search)
 torch==2.2.2
+# IMPORTANT: grpcio must be pinned to a version with pre-built wheels.
+# Without this, pip may download grpcio>=1.76.0 which requires C++ compilation
+# from source, taking 10-15 minutes. Version 1.62.3 has pre-built wheels for
+# all major platforms (Windows, macOS, Linux) and Python versions.
+grpcio==1.62.3
 chromadb==1.4.0
 sentence-transformers==5.2.0
 numpy==1.26.3
