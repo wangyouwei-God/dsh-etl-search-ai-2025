@@ -11,6 +11,7 @@ Author: University of Manchester RSE Team
 """
 
 import json
+import logging
 import os
 import re
 from datetime import datetime
@@ -27,6 +28,9 @@ from application.interfaces.metadata_extractor import (
 )
 from domain.entities.metadata import Metadata, BoundingBox, MetadataRelationship
 from domain.entities.resource import Resource, RemoteFileResource, WebFolderResource, APIDataResource
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class JSONExtractor(IMetadataExtractor):
@@ -94,7 +98,7 @@ class JSONExtractor(IMetadataExtractor):
         except Exception as e:
             # Log error but return what we found so far
             # In a real system, we might want to raise, but here we prioritize resilience
-            print(f"Error extracting resources from {source_path}: {e}")
+            logger.warning(f"Error extracting resources from {source_path}: {e}")
             
         return resources
 
