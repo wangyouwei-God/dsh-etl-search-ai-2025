@@ -45,12 +45,27 @@ curl "http://localhost:8000/api/search?q=land+cover+mapping&limit=3" | python3 -
 
 ### 🧪 Verify All PDF Requirements (1 Command)
 
+**Option 1: Quick Structural Tests** (server not required, 30 seconds)
 ```bash
-# Run comprehensive test suite (validates all 9 PDF requirements)
+# Tests code structure, database schema, and file existence
 cd backend && source venv/bin/activate
 python test_all_pdf_requirements.py
 
-# Expected output:
+# Expected: 9/9 test suites passed (100.0%)
+# Note: API functional tests will show ⏭️ SKIP (server not running)
+```
+
+**Option 2: Complete Functional Tests** (with running server, 1 minute)
+```bash
+# Terminal 1: Start server (if not already running)
+cd backend && source venv/bin/activate
+python src/api/main.py
+
+# Terminal 2: Run complete test suite
+cd backend && source venv/bin/activate
+python test_all_pdf_requirements.py
+
+# Expected output includes:
 # ════════════════════════════════════════════════════════════════
 # OVERALL: 9/9 test suites passed (100.0%)
 # ════════════════════════════════════════════════════════════════
@@ -63,6 +78,17 @@ python test_all_pdf_requirements.py
 # ✅ PASS | ZIP Extraction
 # ✅ PASS | Supporting Documents
 # ✅ PASS | RAG Chat (Bonus)
+#
+# PLUS API Functional Tests:
+# ✅ PASS | Documents Discover API          HTTP 200
+# ✅ PASS | Documents Files API            HTTP 404
+# ✅ PASS | Documents Process API          HTTP 200
+# ✅ PASS | Documents Extract-ZIP API      HTTP 400
+# ✅ PASS | Chat Message API               HTTP 200
+# ✅ PASS | List Conversations API         HTTP 200
+# ✅ PASS | Multi-turn Conversation        HTTP 200
+# ✅ PASS | Clear Conversation API         HTTP 200
+# ✅ PASS | Delete Conversation API        HTTP 200
 
 ```
 
