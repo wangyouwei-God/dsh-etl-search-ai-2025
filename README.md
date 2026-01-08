@@ -13,11 +13,42 @@ A modern, scalable dataset search and discovery platform built with **Clean Arch
 
 ## 🎯 Quick Start for Reviewers
 
-> **⚡ RECOMMENDED: 5-Minute Local Verification** | 📊 **Full Test Report**: [`COMPREHENSIVE_TEST_REPORT.md`](./COMPREHENSIVE_TEST_REPORT.md)
+> **⚡ RECOMMENDED: Docker One-Command Deployment** | 📊 **Full Test Report**: [`COMPREHENSIVE_TEST_REPORT.md`](./COMPREHENSIVE_TEST_REPORT.md)
 >
-> *Alternative Docker deployment available below (takes 8-10 minutes)*
+> *Alternative: Local setup available below (faster for code inspection, takes 5 minutes)*
 
-### ✅ Fastest Path: Local Setup (3 Steps)
+### 🐳 Option 1: Docker Deployment (Production-Ready)
+
+**⚡ One-command deployment** with full environment isolation. Build time: 8-10 minutes (first time only).
+
+```bash
+# Clone repository (if not already done)
+git clone https://github.com/wangyouwei-God/dsh-etl-search-ai-2025.git
+cd dsh-etl-search-ai-2025
+
+# Build and start services (8-10 minutes first time)
+docker compose up --build
+
+# Access services:
+# - Frontend: http://localhost:5173
+# - Backend API: http://localhost:8000/docs
+# - Health Check: http://localhost:8000/health
+```
+
+**Docker Advantages:**
+- **Zero dependency setup** - No Python, Node.js, or package installation required
+- **Complete isolation** - Won't affect your system environment
+- **Production-ready** - Same configuration used for deployment
+- **Consistent results** - Identical behavior across all platforms
+- **Full-stack deployment** - Backend + Frontend + Database in one command
+
+**Build Time:**
+- **First build**: 8-10 minutes (downloads images, installs all dependencies)
+- **Subsequent runs**: < 1 minute (uses cached layers)
+
+---
+
+### ✅ Option 2: Local Setup (3 Steps)
 
 This project **includes pre-loaded databases** with 200 datasets. No ETL required!
 
@@ -173,39 +204,6 @@ npm install && npm run dev
 ### Multi-turn Chat
 ![Multi-turn Chat](screenshots/8_chat_multi_turn.png)
 *Context-aware follow-up questions with maintained conversation history*
-
----
-
-### 🐳 Docker Deployment (Production-Ready)
-
-> **⚡ One-command deployment** with full environment isolation. Build time: 8-10 minutes (first time only).
-
-```bash
-# Clone repository (if not already done)
-git clone https://github.com/wangyouwei-God/dsh-etl-search-ai-2025.git
-cd dsh-etl-search-ai-2025
-
-# Build and start services (8-10 minutes first time)
-docker compose up --build
-
-# Access services:
-# - Frontend: http://localhost:5173
-# - Backend API: http://localhost:8000/docs
-# - Health Check: http://localhost:8000/health
-```
-
-**Docker Advantages:**
-- **Zero dependency setup** - No Python, Node.js, or package installation required
-- **Complete isolation** - Won't affect your system environment
-- **Production-ready** - Same configuration used for deployment
-- **Consistent results** - Identical behavior across all platforms
-- **Full-stack deployment** - Backend + Frontend + Database in one command
-
-**Build Time:**
-- **First build**: 8-10 minutes (downloads images, installs all dependencies)
-- **Subsequent runs**: < 1 minute (uses cached layers)
-
-> **💡 Tip**: For quick code inspection and individual component testing, local setup is faster. For evaluating the complete system as a production application, Docker is recommended.
 
 ---
 
