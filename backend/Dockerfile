@@ -40,6 +40,10 @@ RUN pip install --no-cache-dir \
 # Copy application code
 COPY --chown=appuser:appuser . .
 
+# Create necessary runtime directories for supporting documents and extracted datasets
+RUN mkdir -p /app/supporting_docs /app/extracted_datasets && \
+    chown -R appuser:appuser /app/supporting_docs /app/extracted_datasets
+
 # Copy and set up entrypoint script
 COPY --chown=appuser:appuser docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
