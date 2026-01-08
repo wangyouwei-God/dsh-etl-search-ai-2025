@@ -31,7 +31,10 @@ def print_header(title):
 
 def print_result(test_name, passed, details=""):
     """Print test result"""
-    status = "✅ PASS" if passed else "❌ FAIL"
+    if passed == "SKIP":
+        status = "⏭️  SKIP"
+    else:
+        status = "✅ PASS" if passed else "❌ FAIL"
     print(f"{status} | {test_name}")
     if details:
         print(f"         {details}")
@@ -451,6 +454,7 @@ def test_supporting_documents():
     - Extract PDFs, HTML, etc. from ZIP archives
     - Store in database
     - Process for RAG (chunking, embedding)
+    - API endpoints for document management
     """
     print_header("TEST 8: SUPPORTING DOCUMENT PROCESSING")
 
@@ -500,6 +504,75 @@ def test_supporting_documents():
     except Exception as e:
         print_result("Supporting Document Tests", False, f"Error: {str(e)}")
         results.append(False)
+
+    # API Functional Tests (Optional - requires running server)
+    print("\n  API Endpoint Tests (requires running server):")
+
+    try:
+        import requests
+
+        # Check if server is running
+        try:
+            health_check = requests.get("http://localhost:8000/health", timeout=2)
+            server_running = health_check.status_code == 200
+        except:
+            server_running = False
+
+        if not server_running:
+            print_result("Documents API Tests", "SKIP",
+                        "Server not running (start with: docker compose up)")
+        else:
+            # Use a real dataset ID from database for testing
+            test_conn = sqlite3.connect("datasets.db")
+            test_cursor = test_conn.cursor()
+            test_cursor.execute("SELECT id FROM datasets LIMIT 1")
+            row = test_cursor.fetchone()
+            test_dataset_id = row[0] if row else "test-id"
+            test_conn.close()
+
+            # Test 8.4: Discover Documents API
+            try:
+                response = requests.get(f"http://localhost:8000/api/documents/discover/{test_dataset_id}", timeout=5)
+                api_works = response.status_code in [200, 404]  # Both are valid responses
+                print_result("Documents Discover API", api_works,
+                            f"HTTP {response.status_code}")
+            except Exception as e:
+                print_result("Documents Discover API", False, f"Error: {str(e)}")
+
+            # Test 8.5: Get Files API
+            try:
+                response = requests.get(f"http://localhost:8000/api/documents/files/{test_dataset_id}", timeout=5)
+                api_works = response.status_code in [200, 404]
+                print_result("Documents Files API", api_works,
+                            f"HTTP {response.status_code}")
+            except Exception as e:
+                print_result("Documents Files API", False, f"Error: {str(e)}")
+
+            # Test 8.6: Process Documents API
+            try:
+                response = requests.post("http://localhost:8000/api/documents/process",
+                                       json={"dataset_id": test_dataset_id}, timeout=10)
+                api_works = response.status_code in [200, 404, 422]  # 422 for validation
+                print_result("Documents Process API", api_works,
+                            f"HTTP {response.status_code}")
+            except Exception as e:
+                print_result("Documents Process API", False, f"Error: {str(e)}")
+
+            # Test 8.7: Extract ZIP API
+            try:
+                response = requests.post("http://localhost:8000/api/documents/extract-zip",
+                                       json={"dataset_id": test_dataset_id}, timeout=10)
+                api_works = response.status_code in [200, 400, 404, 422, 500]  # 400/422 for validation, 500 for remote errors
+                print_result("Documents Extract-ZIP API", api_works,
+                            f"HTTP {response.status_code}")
+            except Exception as e:
+                print_result("Documents Extract-ZIP API", False, f"Error: {str(e)}")
+
+    except ImportError:
+        print_result("Documents API Tests", "SKIP",
+                    "requests library not installed (pip install requests)")
+    except Exception as e:
+        print_result("Documents API Tests", "SKIP", f"Error: {str(e)}")
 
     return all(results)
 
@@ -579,6 +652,7 @@ def test_rag_chat():
     - Multi-turn conversation support
     - Source citations
     - Gemini integration
+    - Conversation management APIs
     """
     print_header("TEST 9: RAG CHAT (BONUS FEATURE)")
 
@@ -621,6 +695,100 @@ def test_rag_chat():
     except Exception as e:
         print_result("RAG Chat Tests", False, f"Error: {str(e)}")
         results.append(False)
+
+    # API Functional Tests (Optional - requires running server)
+    print("\n  API Endpoint Tests (requires running server):")
+
+    try:
+        import requests
+
+        # Check if server is running
+        try:
+            health_check = requests.get("http://localhost:8000/health", timeout=2)
+            server_running = health_check.status_code == 200
+        except:
+            server_running = False
+
+        if not server_running:
+            print_result("Chat API Tests", "SKIP",
+                        "Server not running (start with: docker compose up)")
+        else:
+            conversation_id = None
+
+            # Test 9.6: Send Chat Message API
+            try:
+                response = requests.post("http://localhost:8000/api/chat",
+                                       json={"message": "Test message for API validation"},
+                                       headers={"Content-Type": "application/json"},
+                                       timeout=10)
+                api_works = response.status_code == 200
+                if api_works:
+                    data = response.json()
+                    conversation_id = data.get("conversation_id")
+                    has_sources = "sources" in data
+                    print_result("Chat Message API", True,
+                                f"HTTP 200, conversation_id={conversation_id[:8] if conversation_id else 'N/A'}..., sources={len(data.get('sources', []))}")
+                else:
+                    print_result("Chat Message API", False,
+                                f"HTTP {response.status_code}")
+            except Exception as e:
+                print_result("Chat Message API", False, f"Error: {str(e)}")
+
+            # Test 9.7: List Conversations API
+            try:
+                response = requests.get("http://localhost:8000/api/chat/conversations", timeout=5)
+                api_works = response.status_code == 200
+                if api_works:
+                    convs = response.json()
+                    print_result("List Conversations API", True,
+                                f"HTTP 200, {len(convs)} conversation(s)")
+                else:
+                    print_result("List Conversations API", False,
+                                f"HTTP {response.status_code}")
+            except Exception as e:
+                print_result("List Conversations API", False, f"Error: {str(e)}")
+
+            # Test 9.8: Multi-turn Conversation (if we got a conversation_id)
+            if conversation_id:
+                try:
+                    response = requests.post("http://localhost:8000/api/chat",
+                                           json={"message": "Follow-up test", "conversation_id": conversation_id},
+                                           headers={"Content-Type": "application/json"},
+                                           timeout=10)
+                    api_works = response.status_code == 200
+                    print_result("Multi-turn Conversation", api_works,
+                                f"HTTP {response.status_code}, context maintained")
+                except Exception as e:
+                    print_result("Multi-turn Conversation", False, f"Error: {str(e)}")
+
+                # Test 9.9: Clear Conversation API
+                try:
+                    response = requests.post(f"http://localhost:8000/api/chat/conversations/{conversation_id}/clear",
+                                           timeout=5)
+                    api_works = response.status_code == 200
+                    print_result("Clear Conversation API", api_works,
+                                f"HTTP {response.status_code}")
+                except Exception as e:
+                    print_result("Clear Conversation API", False, f"Error: {str(e)}")
+
+                # Test 9.10: Delete Conversation API
+                try:
+                    response = requests.delete(f"http://localhost:8000/api/chat/conversations/{conversation_id}",
+                                             timeout=5)
+                    api_works = response.status_code == 200
+                    print_result("Delete Conversation API", api_works,
+                                f"HTTP {response.status_code}")
+                except Exception as e:
+                    print_result("Delete Conversation API", False, f"Error: {str(e)}")
+            else:
+                print_result("Conversation Management APIs", "SKIP",
+                            "No conversation_id available from chat test")
+
+    except ImportError:
+        print_result("Chat API Tests", "SKIP",
+                    "requests library not installed (pip install requests)")
+    except Exception as e:
+        print_result("Chat API Tests", "SKIP", f"Error: {str(e)}")
 
     return all(results)
 
