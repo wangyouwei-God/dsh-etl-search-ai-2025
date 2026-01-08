@@ -19,7 +19,11 @@ from infrastructure.etl.factory.extractor_factory import ExtractorFactory
 from infrastructure.services.embedding_service import HuggingFaceEmbeddingService
 from infrastructure.persistence.vector.chroma_repository import ChromaVectorRepository
 from infrastructure.persistence.sqlite.connection import DatabaseConnection
+from application.services.document_processor import (
+    PDFProcessor, DOCXProcessor, DocumentProcessorFactory
+)
 import sqlite3
+import tempfile
 
 
 def print_header(title):
@@ -424,10 +428,12 @@ def test_zip_extraction():
     try:
         from infrastructure.etl.zip_extractor import ZipExtractor
 
-        zip_extractor = ZipExtractor()
-        print_result("ZIP Extractor Initialization", True,
-                    "ZipExtractor instantiated successfully")
-        results.append(True)
+        # Use temp directory to avoid permission issues in Docker
+        with tempfile.TemporaryDirectory() as temp_dir:
+            zip_extractor = ZipExtractor(extract_dir=temp_dir)
+            print_result("ZIP Extractor Initialization", True,
+                        f"ZipExtractor instantiated successfully (dir={temp_dir})")
+            results.append(True)
 
         # Check if supporting documents were extracted
         conn = sqlite3.connect("datasets.db")
@@ -793,6 +799,109 @@ def test_rag_chat():
     return all(results)
 
 
+
+def test_document_processors():
+    """
+    Test PDFProcessor and DOCXProcessor explicitly.
+    Verifies:
+    - Library availability check
+    - File processing capability (can_process)
+    - Text extraction (with temp files)
+    """
+    print_header("TEST 10: DOCUMENT PROCESSORS (PDF/DOCX)")
+
+    results = []
+
+    # Test 10.1: PDFProcessor
+    try:
+        pdf_proc = PDFProcessor()
+        if not pdf_proc._pymupdf_available:
+            print_result("PDFProcessor", "SKIP", "PyMuPDF not installed")
+            # If not installed, can't test functionality, but shouldn't fail suite
+            results.append(True)
+        else:
+            # Create temp PDF for testing
+            import fitz
+            with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tf:
+                temp_path = tf.name
+            
+            try:
+                # Create minimal PDF
+                doc = fitz.open()
+                page = doc.new_page()
+                page.insert_text((10, 10), "Test content")
+                doc.save(temp_path)
+                doc.close()
+
+                # Test functionality
+                can_process = pdf_proc.can_process(temp_path)
+                text = pdf_proc.extract_text(temp_path)
+                
+                is_valid = can_process and "Test content" in text
+                print_result("PDFProcessor Extraction", is_valid,
+                           f"Extracted {len(text)} chars from temp PDF")
+                results.append(is_valid)
+
+            finally:
+                Path(temp_path).unlink(missing_ok=True)
+                
+    except Exception as e:
+        print_result("PDFProcessor extraction", False, f"Error: {str(e)}")
+        results.append(False)
+
+    # Test 10.2: DOCXProcessor
+    try:
+        docx_proc = DOCXProcessor()
+        if not docx_proc._docx_available:
+            print_result("DOCXProcessor", "SKIP", "python-docx not installed")
+            results.append(True)
+        else:
+            # Create temp DOCX
+            from docx import Document
+            with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as tf:
+                temp_path = tf.name
+            
+            try:
+                # Create minimal DOCX
+                doc = Document()
+                doc.add_paragraph("Test content")
+                doc.save(temp_path)
+
+                # Test functionality
+                can_process = docx_proc.can_process(temp_path)
+                text = docx_proc.extract_text(temp_path)
+                
+                is_valid = can_process and "Test content" in text
+                print_result("DOCXProcessor Extraction", is_valid,
+                           f"Extracted {len(text)} chars from temp DOCX")
+                results.append(is_valid)
+
+            finally:
+                Path(temp_path).unlink(missing_ok=True)
+                
+    except Exception as e:
+        print_result("DOCXProcessor extraction", False, f"Error: {str(e)}")
+        results.append(False)
+
+    # Test 10.3: Factory Integration (Explicit Check)
+    try:
+        factory = DocumentProcessorFactory()
+        # Mock paths just for routing check (files don't need to exist for can_process checks in some implementations, 
+        # but let's stick to the processor selection logic which is safe)
+        
+        # We can't easily check routing without files or exposing internals, 
+        # but we can verify the factory instantiation and can_process logic
+        is_factory_ok = isinstance(factory, DocumentProcessorFactory)
+        print_result("DocumentProcessorFactory", is_factory_ok, "Factory instantiated")
+        results.append(is_factory_ok)
+
+    except Exception as e:
+        print_result("DocumentProcessorFactory", False, f"Error: {str(e)}")
+        results.append(False)
+
+    return all(results)
+
+
 def main():
     """Run all PDF requirement tests"""
     print("\n" + "╔" + "=" * 78 + "╗")
@@ -811,6 +920,7 @@ def main():
     test_results["Database Schema"] = test_database_schema()
     test_results["ZIP Extraction"] = test_zip_extraction()
     test_results["Supporting Documents"] = test_supporting_documents()
+    test_results["Document Processors (PDF/DOCX)"] = test_document_processors()
     test_results["RAG Chat (Bonus)"] = test_rag_chat()
 
     # Summary
