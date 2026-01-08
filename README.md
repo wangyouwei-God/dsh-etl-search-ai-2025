@@ -536,6 +536,8 @@ This project strictly follows **Clean Architecture** (also known as Onion Archit
 | **ChromaDB** | Vector database | Latest |
 | **sentence-transformers** | Text embeddings | Latest |
 | **lxml** | XML parsing (ISO 19115) | Latest |
+| **PyMuPDF (fitz)** | PDF text extraction | Latest |
+| **python-docx** | DOCX text extraction | Latest |
 | **numpy** | Vector operations | 1.26.3 (locked) |
 
 ### Frontend
