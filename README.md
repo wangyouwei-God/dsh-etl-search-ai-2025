@@ -371,9 +371,10 @@ This system provides a comprehensive solution for researchers and data scientist
 4. **RAG-Powered Chat**: Intelligent assistant using Retrieval-Augmented Generation with Gemini API
 5. **Multi-turn Conversations**: Context-aware dialogue with source citations
 6. **Data Acquisition**: Automated ZIP download and supporting document extraction
-7. **Batch Processing**: Process 200+ datasets with progress tracking and resumption
-8. **Comprehensive Testing**: All extractors verified working (100% test coverage)
-9. **Extensible Design**: Easy to add new metadata formats and search strategies
+7. **Document Processing**: Extract text from **PDF** (PyMuPDF) and **DOCX** (python-docx) for RAG embedding
+8. **Batch Processing**: Process 200+ datasets with progress tracking and resumption
+9. **Comprehensive Testing**: All extractors verified working (100% test coverage)
+10. **Extensible Design**: Easy to add new metadata formats and search strategies
 
 ### RAG & Conversational AI
 
