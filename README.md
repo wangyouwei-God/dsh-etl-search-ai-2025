@@ -11,15 +11,15 @@ A modern, scalable dataset search and discovery platform built with **Clean Arch
 
 ---
 
-## 🎯 Quick Start for Reviewers
+## Quick Start for Reviewers
 
-> **⚡ RECOMMENDED: Docker One-Command Deployment** | 📊 **Full Test Report**: [`FINAL_VERIFICATION_REPORT.md`](./FINAL_VERIFICATION_REPORT.md)
+> **RECOMMENDED: Docker One-Command Deployment** | **Full Test Report**: [`FINAL_VERIFICATION_REPORT.md`](./FINAL_VERIFICATION_REPORT.md)
 >
 > *Alternative: Local setup available below (faster for code inspection, takes 5 minutes)*
 
-### 🐳 Option 1: Docker Deployment (Production-Ready)
+### Option 1: Docker Deployment (Production-Ready)
 
-**⚡ One-command deployment** with full environment isolation. Build time: 8-10 minutes (first time only).
+**One-command deployment** with full environment isolation. Build time: 8-10 minutes (first time only).
 
 ```bash
 # Clone repository (if not already done)
@@ -48,7 +48,7 @@ docker compose up --build
 
 ---
 
-### ✅ Option 2: Local Setup (3 Steps)
+### Option 2: Local Setup (3 Steps)
 
 This project **includes pre-loaded databases** with 200 datasets. No ETL required!
 
@@ -74,7 +74,7 @@ curl http://localhost:8000/health | python3 -m json.tool
 curl "http://localhost:8000/api/search?q=land+cover+mapping&limit=3" | python3 -m json.tool
 ```
 
-### 🧪 Verify All PDF Requirements (1 Command)
+### Verify All PDF Requirements (1 Command)
 
 **Option 1: Quick Structural Tests** (server not required, 30 seconds)
 ```bash
@@ -83,7 +83,7 @@ cd backend && source venv/bin/activate
 python test_all_pdf_requirements.py
 
 # Expected: 9/9 test suites passed (100.0%)
-# Note: API functional tests will show ⏭️ SKIP (server not running)
+# Note: API functional tests will show SKIP (server not running)
 ```
 
 **Option 2: Complete Functional Tests** (with running server, 1 minute)
@@ -123,7 +123,7 @@ python test_all_pdf_requirements.py
 
 ```
 
-### 📋 PDF Requirements Verification Checklist
+### PDF Requirements Verification Checklist
 
 | # | Requirement | Quick Test | Expected Result |
 |---|-------------|------------|-----------------|
@@ -137,7 +137,7 @@ python test_all_pdf_requirements.py
 | 8 | **Supporting Docs Processing** | Check ChromaDB | 85 embedded vectors |
 | 9 | **RAG Chat (Bonus)** | `curl http://localhost:8000/openapi.json \| grep chat` | 4 chat endpoints |
 
-### 🏥 Health Check Validation
+### Health Check Validation
 
 ```bash
 curl http://localhost:8000/health | python3 -m json.tool
@@ -154,7 +154,7 @@ curl http://localhost:8000/health | python3 -m json.tool
 }
 ```
 
-### 🔍 Semantic Search Quality Test
+### Semantic Search Quality Test
 
 ```bash
 # Test 1: Land Cover query (high precision)
@@ -168,7 +168,7 @@ curl -s "http://localhost:8000/api/search?q=land+cover+mapping&limit=3" | \
 # Score: 0.8080  ← Should be > 0.70
 ```
 
-### 🎨 Frontend Interface (Optional)
+### Frontend Interface (Optional)
 
 ```bash
 # New terminal
@@ -183,7 +183,7 @@ npm install && npm run dev
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 ### Search Interface
 ![Search Page](screenshots/1_search_page.png)
@@ -207,7 +207,7 @@ npm install && npm run dev
 
 ---
 
-### 🔧 Troubleshooting
+### Troubleshooting
 
 <details>
 <summary><b>Problem 1: Port 8000 already in use</b></summary>
@@ -255,7 +255,7 @@ python src/api/main.py  # Auto-rebuilds
 ```
 </details>
 
-### 📊 Performance Benchmarks
+### Performance Benchmarks
 
 | Metric | Expected | Notes |
 |--------|----------|-------|
@@ -265,7 +265,7 @@ python src/api/main.py  # Auto-rebuilds
 | Similarity score (relevant) | > 0.70 | High relevance |
 | Similarity score (exact match) | > 0.80 | Very high relevance |
 
-### 📁 Important Files
+### Important Files
 
 **Testing**:
 - `backend/test_all_pdf_requirements.py` - Complete PDF requirements test suite
@@ -279,7 +279,7 @@ python src/api/main.py  # Auto-rebuilds
 - `backend/requirements.txt` - Python dependencies (NumPy locked at 1.26.3)
 - `frontend/package.json` - Frontend dependencies (bits-ui@0.11.0)
 
-### 🎯 Reviewer Checklist
+### Reviewer Checklist
 
 **5-Minute Quick Check**:
 - [ ] Health check shows 200 datasets ✅
@@ -311,7 +311,7 @@ python src/api/main.py  # Auto-rebuilds
 - (Optional) Node.js 18+ for frontend
 - (Optional) Docker Desktop
 
-### 🐳 Docker Alternative (2 minutes)
+### Docker Alternative (2 minutes)
 
 ```bash
 git clone https://github.com/wangyouwei-God/dsh-etl-search-ai-2025.git
@@ -329,7 +329,7 @@ docker compose up --build
 # - Health: http://localhost:8000/health
 ```
 
-### ⚠️ Important Notes
+### Important Notes
 
 1. **Pre-loaded Data**: Project includes `datasets.db` and `chroma_db/` with 200 complete datasets. **No ETL required for testing**.
 
@@ -341,7 +341,7 @@ docker compose up --build
 
 ## Table of Contents
 
-- [Quick Start for Reviewers](#-quick-start-for-reviewers)
+- [Quick Start for Reviewers](#quick-start-for-reviewers)
 - [Project Purpose](#project-purpose)
 - [Architecture Overview](#architecture-overview)
 - [Clean Architecture Principles](#clean-architecture-principles)
@@ -395,7 +395,7 @@ Advanced automated data acquisition infrastructure:
 - **Multi-Format Support**: Handles PDF, DOCX, CSV, DOC formats
 - **Database Integration**: Full integration with metadata and data_files tables
 
-### 🔑 RAG Chat Configuration (Optional)
+### RAG Chat Configuration (Optional)
 
 The conversational AI assistant requires a **free** Gemini API key. Without it, the system gracefully falls back to semantic search results.
 
