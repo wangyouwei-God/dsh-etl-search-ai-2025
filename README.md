@@ -862,9 +862,15 @@ Extractor Test Results:
 
 **RAG Chat (Bonus)**:
 - `POST /api/chat` - Send chat message
-- `GET /api/chat/conversations` - List conversations
-- `GET /api/chat/conversations/{id}` - Get conversation history
-- `DELETE /api/chat/conversations/{id}/clear` - Clear conversation
+- `GET /api/chat/conversations` - List all conversations
+- `DELETE /api/chat/conversations/{id}` - Delete conversation
+- `POST /api/chat/conversations/{id}/clear` - Clear conversation history
+
+**Supporting Documents**:
+- `GET /api/documents/discover/{dataset_id}` - Discover supporting documents for a dataset
+- `GET /api/documents/files/{dataset_id}` - Get extracted files for a dataset
+- `POST /api/documents/process` - Process and extract text from documents
+- `POST /api/documents/extract-zip` - Download and extract ZIP archives
 
 **Interactive Documentation**:
 - Swagger UI: http://localhost:8000/docs
@@ -915,6 +921,43 @@ Response:
   ],
   "conversation_id": "..."
 }
+```
+
+**Multi-turn Conversation**:
+```bash
+# Continue conversation with context
+curl -X POST http://localhost:8000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Tell me more about the 2020 dataset",
+    "conversation_id": "..."
+  }'
+```
+
+**Conversation Management**:
+```bash
+# List all conversations
+curl http://localhost:8000/api/chat/conversations
+
+# Clear conversation history (keeps conversation ID)
+curl -X POST http://localhost:8000/api/chat/conversations/{id}/clear
+
+# Delete conversation completely
+curl -X DELETE http://localhost:8000/api/chat/conversations/{id}
+```
+
+**Supporting Documents**:
+```bash
+# Discover supporting documents for a dataset
+curl http://localhost:8000/api/documents/discover/b4346fc5-4973-4585-8074-ed01c95669c1
+
+# Get extracted files
+curl http://localhost:8000/api/documents/files/b4346fc5-4973-4585-8074-ed01c95669c1
+
+# Process documents and extract text
+curl -X POST http://localhost:8000/api/documents/process \
+  -H "Content-Type: application/json" \
+  -d '{"dataset_id": "b4346fc5-4973-4585-8074-ed01c95669c1"}'
 ```
 
 ---
