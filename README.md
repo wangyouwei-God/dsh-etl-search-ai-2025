@@ -80,15 +80,15 @@ python test_all_pdf_requirements.py
 # ✅ PASS | RAG Chat (Bonus)
 #
 # PLUS API Functional Tests:
-# ✅ PASS | Documents Discover API          HTTP 200
-# ✅ PASS | Documents Files API            HTTP 404
-# ✅ PASS | Documents Process API          HTTP 200
-# ✅ PASS | Documents Extract-ZIP API      HTTP 400
-# ✅ PASS | Chat Message API               HTTP 200
-# ✅ PASS | List Conversations API         HTTP 200
-# ✅ PASS | Multi-turn Conversation        HTTP 200
-# ✅ PASS | Clear Conversation API         HTTP 200
-# ✅ PASS | Delete Conversation API        HTTP 200
+# ✅ PASS | Documents Discover API
+# ✅ PASS | Documents Files API
+# ✅ PASS | Documents Process API
+# ✅ PASS | Documents Extract-ZIP API
+# ✅ PASS | Chat Message API
+# ✅ PASS | List Conversations API
+# ✅ PASS | Multi-turn Conversation
+# ✅ PASS | Clear Conversation API
+# ✅ PASS | Delete Conversation API
 
 ```
 
