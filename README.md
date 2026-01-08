@@ -13,7 +13,7 @@ A modern, scalable dataset search and discovery platform built with **Clean Arch
 
 ## 🎯 Quick Start for Reviewers
 
-> **⚡ RECOMMENDED: Docker One-Command Deployment** | 📊 **Full Test Report**: [`COMPREHENSIVE_TEST_REPORT.md`](./COMPREHENSIVE_TEST_REPORT.md)
+> **⚡ RECOMMENDED: Docker One-Command Deployment** | 📊 **Full Test Report**: [`FINAL_VERIFICATION_REPORT.md`](./FINAL_VERIFICATION_REPORT.md)
 >
 > *Alternative: Local setup available below (faster for code inspection, takes 5 minutes)*
 
@@ -269,7 +269,7 @@ python src/api/main.py  # Auto-rebuilds
 
 **Testing**:
 - `backend/test_all_pdf_requirements.py` - Complete PDF requirements test suite
-- `COMPREHENSIVE_TEST_REPORT.md` - Full test report with evidence
+- `FINAL_VERIFICATION_REPORT.md` - Full test report with evidence
 
 **Databases** (Pre-loaded):
 - `backend/datasets.db` - SQLite with 200 datasets
@@ -291,7 +291,7 @@ python src/api/main.py  # Auto-rebuilds
 - [ ] Check design patterns (Strategy/Factory/Repository)
 - [ ] Inspect code quality (type hints, documentation, SOLID)
 - [ ] Test frontend (Svelte + bits-ui)
-- [ ] Read `COMPREHENSIVE_TEST_REPORT.md` for full evidence
+- [ ] Read `FINAL_VERIFICATION_REPORT.md` for full evidence
 
 ### System Requirements
 
@@ -335,7 +335,7 @@ docker compose up --build
 
 2. **Gemini API Key**: RAG chat requires API key, but this is **optional**. Without it, system auto-falls back to semantic search. All other features work normally.
 
-3. **Test Report**: Complete test evidence and performance metrics in `COMPREHENSIVE_TEST_REPORT.md`.
+3. **Test Report**: Complete test evidence and performance metrics in `FINAL_VERIFICATION_REPORT.md`.
 
 ---
 
@@ -590,7 +590,7 @@ This project strictly follows **Clean Architecture** (also known as Onion Archit
 │   │   │   └── datasets/        # Dataset browser
 │   │   └── components/          # Reusable UI components
 │   └── package.json             # Frontend dependencies
-├── COMPREHENSIVE_TEST_REPORT.md # Full test report
+├── FINAL_VERIFICATION_REPORT.md # Full test report
 └── README.md                    # This file
 ```
 
@@ -1109,4 +1109,4 @@ For questions regarding this assessment project, please contact the RSE team.
 
 **Built with Clean Architecture principles for long-term maintainability and scalability.**
 
-**Test Report**: See [`COMPREHENSIVE_TEST_REPORT.md`](./COMPREHENSIVE_TEST_REPORT.md) for complete test evidence.
+**Test Report**: See [`FINAL_VERIFICATION_REPORT.md`](./FINAL_VERIFICATION_REPORT.md) for complete test evidence.
