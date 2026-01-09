@@ -135,8 +135,17 @@ class ZipExtractor:
         try:
             logger.info(f"Downloading ZIP: {url}")
             
-            # First, check file size with HEAD request
-            head_response = self.session.head(url, timeout=30)
+            # First, check file size with HEAD request (allow redirects to check final destination)
+            head_response = self.session.head(url, timeout=30, allow_redirects=True)
+            
+            # Check if redirected to login/SSO page (authentication required)
+            final_url = head_response.url
+            if any(auth_indicator in final_url.lower() for auth_indicator in ['/sso/', '/login', '/signin', '/auth']):
+                raise ZipDownloadError(
+                    f"Authentication required: The data provider requires login to access this resource. "
+                    f"Please download manually from: {url}"
+                )
+            
             content_length = int(head_response.headers.get('content-length', 0))
             
             if content_length > self.max_size_bytes:
@@ -145,12 +154,38 @@ class ZipExtractor:
                     f"(max: {self.max_size_bytes / 1024 / 1024:.1f}MB)"
                 )
             
-            # Download the file
-            response = self.session.get(url, timeout=self.timeout, stream=True)
+            # Download the file (allow redirects)
+            response = self.session.get(url, timeout=self.timeout, stream=True, allow_redirects=True)
             response.raise_for_status()
+            
+            # Check Content-Type to ensure it's actually a ZIP file
+            content_type = response.headers.get('content-type', '').lower()
+            valid_zip_types = ['application/zip', 'application/x-zip-compressed', 'application/octet-stream']
+            
+            # If we got HTML, it's likely a login page or error page
+            if 'text/html' in content_type:
+                # Check response content for login indicators
+                content_preview = response.content[:1000].decode('utf-8', errors='ignore').lower()
+                if any(indicator in content_preview for indicator in ['login', 'sign in', 'sso', 'authenticate']):
+                    raise ZipDownloadError(
+                        f"Authentication required: The data provider requires login to access this resource. "
+                        f"Please download manually from: {url}"
+                    )
+                else:
+                    raise ZipDownloadError(
+                        f"Invalid response: Expected ZIP file but received HTML. "
+                        f"The server may require authentication or the resource may not exist."
+                    )
             
             content = response.content
             actual_size = len(content)
+            
+            # Verify it's actually a ZIP file by checking magic bytes
+            if len(content) < 4 or content[:4] not in [b'PK\x03\x04', b'PK\x05\x06', b'PK\x07\x08']:
+                raise ZipDownloadError(
+                    f"Invalid file format: The downloaded content is not a valid ZIP file. "
+                    f"Content-Type: {content_type}, Size: {actual_size} bytes"
+                )
             
             logger.info(f"Downloaded: {actual_size / 1024 / 1024:.2f}MB")
             return content, actual_size
