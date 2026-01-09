@@ -45,6 +45,8 @@ A dataset search and discovery platform that ingests ISO 19115 metadata, stores 
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [Test Report](#test-report)
+- [LLM Converstaions](#llm-converstaions)
 - [Configuration](#configuration)
 - [Verification](#verification)
 - [Architecture Overview](#architecture-overview)
@@ -116,6 +118,12 @@ Access: http://localhost:5173
 ## Test Report
 
 See [`FINAL_VERIFICATION_REPORT.md`](./FINAL_VERIFICATION_REPORT.md) for complete test evidence.
+
+---
+
+## LLM Converstaions
+
+See [`AI_CONVERSATION_LOG.md`](./AI_CONVERSATION_LOG.md) for the full LLM conversation log.
 
 ---
 
