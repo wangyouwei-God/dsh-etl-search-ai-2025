@@ -17,6 +17,14 @@ from typing import Optional
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Load environment variables from repo root .env (local runs).
+try:
+    from dotenv import load_dotenv
+    repo_root = Path(__file__).resolve().parents[3]
+    load_dotenv(repo_root / ".env")
+except Exception:
+    pass
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -524,4 +532,3 @@ if __name__ == "__main__":
         reload=True,
         log_level="info"
     )
-
