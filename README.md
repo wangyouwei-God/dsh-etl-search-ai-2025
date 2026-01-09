@@ -55,7 +55,9 @@ This project **includes pre-loaded databases** with 200 datasets. No ETL require
 ```bash
 # Step 1: Clone and install (2 minutes)
 git clone https://github.com/wangyouwei-God/dsh-etl-search-ai-2025.git
-cd dsh-etl-search-ai-2025/backend
+cd dsh-etl-search-ai-2025
+cp .env.example .env  # Optional: Configure API keys
+cd backend
 python -m venv venv && source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
@@ -636,6 +638,12 @@ docker compose up --build
 #### Backend
 
 ```bash
+### Version Check
+python3 --version  # Must be 3.11+
+
+# Configure environment
+cp .env.example .env
+
 cd backend
 
 # Create virtual environment
