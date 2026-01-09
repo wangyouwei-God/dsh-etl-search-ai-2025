@@ -66,12 +66,13 @@ This repository includes preloaded databases (`backend/datasets.db`, `backend/ch
 ### Option 1: Docker
 
 ```bash
-# Clone repository (if not already done)
+# Clone repository
 git clone https://github.com/wangyouwei-God/dsh-etl-search-ai-2025.git
 cd dsh-etl-search-ai-2025
 
-# Optional: enable chat by adding GEMINI_API_KEY
+# Optional: Enable chat functionality
 cp .env.example .env
+# Edit .env and add your GEMINI_API_KEY to use the chat feature
 
 # Build and start services
 docker compose up --build
@@ -87,12 +88,13 @@ Access:
 Backend:
 
 ```bash
-# Clone repository (if not already done)
+# Clone repository
 git clone https://github.com/wangyouwei-God/dsh-etl-search-ai-2025.git
 cd dsh-etl-search-ai-2025
 
-# Optional: enable chat by adding GEMINI_API_KEY
+# Optional: Enable chat functionality
 cp .env.example .env
+# Edit .env and add your GEMINI_API_KEY to use the chat feature
 
 cd backend
 python3 -m venv venv && source venv/bin/activate  # Windows: venv\Scripts\activate
@@ -188,8 +190,6 @@ OVERALL: 10/10 test suites passed (100.0%)
 
 Notes:
 - API endpoint checks are optional. If the API server is running and `GEMINI_API_KEY` is missing, chat API checks may fail even though the overall test suites still pass.
-
----
 
 ---
 
