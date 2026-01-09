@@ -111,7 +111,11 @@ npm run dev
 
 Access: http://localhost:5173
 
-**Test Report**: See [`FINAL_VERIFICATION_REPORT.md`](./FINAL_VERIFICATION_REPORT.md) for complete test evidence.
+---
+
+## Test Report
+
+See [`FINAL_VERIFICATION_REPORT.md`](./FINAL_VERIFICATION_REPORT.md) for complete test evidence.
 
 ---
 
