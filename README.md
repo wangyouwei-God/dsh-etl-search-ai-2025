@@ -146,13 +146,13 @@ Expected key metrics:
   "database_connected": true,
   "vector_db_connected": true,
   "total_datasets": 200,
-  "total_vectors": 200,
+  "total_vectors": 376,
   "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
   "embedding_dimension": 384
 }
 ```
 
-Note: `total_vectors` reports the dataset collection only. Supporting document vectors are stored in a separate collection.
+Note: `total_vectors` reflects the current dataset embeddings (376) and does not include the supporting_docs collection.
 
 Semantic search:
 
