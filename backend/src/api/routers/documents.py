@@ -215,7 +215,31 @@ async def extract_zip(request: ZipExtractionRequest):
             # Construct download URL if not provided
             download_url = request.download_url
             if not download_url:
-                download_url = f"https://catalogue.ceh.ac.uk/datastore/eidchub/{request.dataset_id}"
+                # First, try to get download_url from database
+                try:
+                    from infrastructure.persistence.sqlite.connection import get_database
+                    from infrastructure.persistence.sqlite.models import MetadataModel
+                    from pathlib import Path
+                    
+                    backend_dir = Path(__file__).parent.parent.parent.parent
+                    db_path = str(backend_dir / "datasets.db")
+                    db = get_database(db_path)
+                    
+                    with db.session_scope() as session:
+                        metadata = session.query(MetadataModel).filter_by(
+                            dataset_id=request.dataset_id
+                        ).first()
+                        if metadata and metadata.download_url:
+                            download_url = metadata.download_url
+                            logger.info(f"Using download_url from database: {download_url}")
+                except Exception as e:
+                    logger.warning(f"Failed to query database for download_url: {e}")
+                
+                # Fallback to default URL pattern if not found in database
+                if not download_url:
+                    # Use data-package pattern (more common for CEH datasets)
+                    download_url = f"https://data-package.ceh.ac.uk/data/{request.dataset_id}.zip"
+                    logger.info(f"Using fallback download_url: {download_url}")
             
             # Check if already extracted
             manifest = extractor.get_manifest(request.dataset_id)
