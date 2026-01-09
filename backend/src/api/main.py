@@ -255,7 +255,7 @@ async def search_datasets(
     q: str = Query(
         ...,
         description="Search query text for semantic matching",
-        example="water quality monitoring",
+        examples=["water quality monitoring"],
         min_length=1
     ),
     limit: int = Query(
@@ -263,7 +263,7 @@ async def search_datasets(
         ge=1,
         le=100,
         description="Maximum number of results to return",
-        example=10
+        examples=[10]
     )
 ):
     """
