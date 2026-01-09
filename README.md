@@ -111,6 +111,8 @@ npm run dev
 
 Access: http://localhost:5173
 
+**Test Report**: See [`FINAL_VERIFICATION_REPORT.md`](./FINAL_VERIFICATION_REPORT.md) for complete test evidence.
+
 ---
 
 ## Configuration
@@ -325,7 +327,3 @@ Representative local measurements (varies by machine):
 ## License
 
 Proprietary - University of Manchester Assessment
-
----
-
-**Test Report**: See [`FINAL_VERIFICATION_REPORT.md`](./FINAL_VERIFICATION_REPORT.md) for complete test evidence.
