@@ -47,7 +47,6 @@ A dataset search and discovery platform that ingests ISO 19115 metadata, stores 
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Verification](#verification)
-- [PDF Requirements Checklist](#pdf-requirements-checklist)
 - [Architecture Overview](#architecture-overview)
 - [Project Structure](#project-structure)
 - [API Documentation](#api-documentation)
@@ -177,20 +176,6 @@ Notes:
 - API endpoint checks are optional. If the API server is running and `GEMINI_API_KEY` is missing, chat API checks may fail even though the overall test suites still pass.
 
 ---
-
-## PDF Requirements Checklist
-
-| # | Requirement | Quick Check | Expected |
-|---|-------------|------------|----------|
-| 1 | ETL - 4 format extractors | `python3 test_all_pdf_requirements.py` | extractors present |
-| 2 | Semantic database | `curl "http://localhost:8000/api/search?q=land+cover&limit=3"` | top score > 0.7 |
-| 3 | Web frontend (Svelte + bits-ui + Tailwind) | `cat frontend/package.json` | dependencies present |
-| 4 | Clean Architecture | `ls backend/src` | domain/application/infrastructure/api |
-| 5 | OOP design patterns | `python3 test_all_pdf_requirements.py` | Strategy/Factory/Repository present |
-| 6 | Database schema | `sqlite3 backend/datasets.db ".tables"` | 5 tables |
-| 7 | ZIP extraction | `python3 test_all_pdf_requirements.py` | PASS |
-| 8 | Supporting document processing | `python3 test_all_pdf_requirements.py` | PASS |
-| 9 | RAG chat (bonus) | `python3 test_all_pdf_requirements.py` | PASS (structural checks) |
 
 ---
 
